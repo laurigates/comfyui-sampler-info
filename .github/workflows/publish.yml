@@ -16,7 +16,7 @@ jobs:
       issues: write
     steps:
       - name: Check out code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Publish Custom Node
         uses: Comfy-Org/publish-node-action@v1
