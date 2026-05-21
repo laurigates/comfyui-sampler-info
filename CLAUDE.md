@@ -30,6 +30,11 @@ Two additive enhancements on combo widgets named `sampler_name` /
 | `web/data/schedulers.json` | Scheduler corpus — same schema. |
 | `pyproject.toml` | Comfy Registry metadata. `PublisherId` is the only field you may need to touch. |
 | `.github/workflows/publish.yml` | Auto-publishes on `pyproject.toml` version bump. |
+| `.github/workflows/ci.yml` | CI: lint, format, test, and security checks on push/PR. |
+| `.github/dependabot.yml` | Automated dependency update PRs. |
+| `.pre-commit-config.yaml` | Pre-commit hooks: ruff, biome, gitleaks, JSON validation. |
+| `biome.json` | Biome (JS/JSON) linter + formatter config. |
+| `tests/` | pytest test suite: Python stub + JSON corpus validation. |
 | `RELEASE-CHECKLIST.md` | Manual publish steps (one-time + per-release). |
 
 ## Hard rules
@@ -131,6 +136,34 @@ Every field is optional. The renderer skips missing fields gracefully.
 4. No restart needed — hard-refresh the browser.
 
 ## Dev workflow
+
+### Setup
+
+```sh
+uv sync --group dev          # install dev dependencies (ruff, pytest, pre-commit)
+pre-commit install           # activate pre-commit hooks
+```
+
+### Lint & format
+
+```sh
+# Python
+uv run ruff check .          # lint Python
+uv run ruff check --fix .    # lint + autofix
+uv run ruff format .         # format Python
+
+# JavaScript / JSON
+npx @biomejs/biome check .   # lint + format check JS/JSON
+npx @biomejs/biome check --write .  # lint + autofix + format JS/JSON
+```
+
+### Tests
+
+```sh
+uv run pytest -v             # run all tests
+uv run pytest tests/test_corpus.py  # corpus validation only
+uv run pytest tests/test_init.py    # Python stub tests only
+```
 
 ### Iterating on JS / CSS / JSON
 

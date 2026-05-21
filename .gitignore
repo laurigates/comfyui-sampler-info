@@ -4,6 +4,9 @@ __pycache__/
 .Python
 *.egg-info/
 .eggs/
+.venv/
+.pytest_cache/
+node_modules/
 
 # Editor
 .vscode/
@@ -18,3 +21,6 @@ Thumbs.db
 # Local notes / scratch
 TODO.local.md
 NOTES.local.md
+
+# Blueprint work-orders (task-specific, may contain sensitive details)
+docs/blueprint/work-orders/
