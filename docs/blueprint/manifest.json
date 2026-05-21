@@ -1,0 +1,402 @@
+{
+  "format_version": "3.3.0",
+  "created_at": "2026-05-21T00:00:00.000Z",
+  "updated_at": "2026-05-21T18:30:00Z",
+  "created_by": {
+    "blueprint_plugin": "3.3.0"
+  },
+  "project": {
+    "name": "comfyui-sampler-info",
+    "detected_stack": [
+      "python",
+      "javascript"
+    ]
+  },
+  "structure": {
+    "has_prds": true,
+    "has_adrs": true,
+    "has_prps": true,
+    "has_work_orders": true,
+    "has_ai_docs": false,
+    "has_modular_rules": true,
+    "has_feature_tracker": true,
+    "has_document_detection": true,
+    "claude_md_mode": "both",
+    "generated_rules_path": ".claude/rules/"
+  },
+  "generated": {
+    "rules": {
+      "last_derived_at": "2026-05-21T16:25:36Z",
+      "commits_analyzed": 3,
+      "conventional_commits_percentage": 100,
+      "rules_generated": 4,
+      "rules_by_category": {
+        "code-style": 1,
+        "api-conventions": 1,
+        "error-handling": 1,
+        "dependencies": 1
+      },
+      "source_commits": [
+        {
+          "sha": "60a3d1ce7ccc80a50bcc115ca023ba4e47076e40",
+          "date": "2026-05-21T13:37:15+03:00",
+          "type": "feat",
+          "message": "feat: initial release scaffold",
+          "rules_generated": [
+            "code-style.md",
+            "api-conventions.md",
+            "error-handling.md",
+            "dependencies.md"
+          ]
+        },
+        {
+          "sha": "4b37fb5254ff4205f787e0802b4e3c654a13ab82",
+          "date": "2026-05-21T18:15:40+03:00",
+          "type": "docs",
+          "message": "docs: add CLAUDE.md with pack-local context (#1)",
+          "rules_generated": [
+            "api-conventions.md",
+            "error-handling.md"
+          ]
+        }
+      ]
+    },
+    "commands": {}
+  },
+  "custom_overrides": {
+    "skills": [],
+    "commands": []
+  },
+  "task_registry": {
+    "derive-prd": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": "2026-05-21T16:18:04Z",
+      "last_result": "success",
+      "schedule": "on-demand",
+      "stats": {
+        "runs_total": 1,
+        "items_created": 1
+      },
+      "context": {}
+    },
+    "derive-plans": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": null,
+      "last_result": null,
+      "schedule": "weekly",
+      "stats": {},
+      "context": {}
+    },
+    "derive-rules": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": "2026-05-21T16:25:36Z",
+      "last_result": "success",
+      "schedule": "weekly",
+      "stats": {
+        "runs_total": 1,
+        "items_processed": 3,
+        "items_created": 4
+      },
+      "context": {
+        "commits_analyzed_up_to": "4b37fb5254ff4205f787e0802b4e3c654a13ab82"
+      }
+    },
+    "generate-rules": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": null,
+      "last_result": null,
+      "schedule": "on-change",
+      "stats": {},
+      "context": {}
+    },
+    "adr-validate": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": "2026-05-21T16:31:19Z",
+      "last_result": "success",
+      "schedule": "weekly",
+      "stats": {
+        "runs_total": 1,
+        "items_processed": 8
+      },
+      "context": {}
+    },
+    "feature-tracker-sync": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": "2026-05-21T20:00:00Z",
+      "last_result": "success",
+      "schedule": "daily",
+      "stats": {
+        "runs_total": 1,
+        "items_processed": 14
+      },
+      "context": {
+        "features_synced": 14,
+        "work_orders_created": 13,
+        "prd_documents": 1
+      }
+    },
+    "sync-ids": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": "2026-05-21T16:29:58Z",
+      "last_result": "success",
+      "schedule": "on-change",
+      "stats": {
+        "runs_total": 1,
+        "items_processed": 10,
+        "items_created": 0
+      },
+      "context": {}
+    },
+    "claude-md": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": null,
+      "last_result": null,
+      "schedule": "on-change",
+      "stats": {},
+      "context": {}
+    },
+    "curate-docs": {
+      "enabled": false,
+      "auto_run": false,
+      "last_completed_at": null,
+      "last_result": null,
+      "schedule": "on-demand",
+      "stats": {},
+      "context": {}
+    },
+    "derive-tests": {
+      "enabled": true,
+      "auto_run": false,
+      "last_completed_at": "2026-05-21T18:30:00Z",
+      "last_result": "success",
+      "schedule": "on-demand",
+      "stats": {
+        "runs_total": 1,
+        "items_processed": 3,
+        "items_created": 4
+      },
+      "context": {
+        "commits_analyzed_up_to": "4b37fb5254ff4205f787e0802b4e3c654a13ab82"
+      }
+    }
+  },
+  "id_registry": {
+    "last_prd": 1,
+    "last_adr": 8,
+    "documents": {
+      "PRD-001": {
+        "path": "docs/blueprint/prds/project-overview.md",
+        "title": "comfyui-sampler-info — Product Requirements Document",
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0001": {
+        "path": "docs/blueprint/adrs/0001-project-language.md",
+        "title": "Project Language Choice — Python Stub + Vanilla JavaScript",
+        "status": "Accepted",
+        "domain": "build-tooling",
+        "relates_to": [
+          "PRD-001"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0002": {
+        "path": "docs/blueprint/adrs/0002-frontend-only-plugin-architecture.md",
+        "title": "Frontend-Only ComfyUI Plugin Architecture",
+        "status": "Accepted",
+        "domain": "frontend-framework",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0001"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0003": {
+        "path": "docs/blueprint/adrs/0003-single-file-js-implementation.md",
+        "title": "Single-File JavaScript Implementation (No Bundler)",
+        "status": "Accepted",
+        "domain": "build-tooling",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0001",
+          "ADR-0002"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0004": {
+        "path": "docs/blueprint/adrs/0004-static-json-corpus.md",
+        "title": "Static JSON Files as the Metadata Corpus",
+        "status": "Accepted",
+        "domain": "data-layer",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0001",
+          "ADR-0002"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0005": {
+        "path": "docs/blueprint/adrs/0005-package-management-and-distribution.md",
+        "title": "Package Management and Distribution via pyproject.toml and Comfy Registry",
+        "status": "Accepted",
+        "domain": "deployment",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0001"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0006": {
+        "path": "docs/blueprint/adrs/0006-ci-cd-github-actions.md",
+        "title": "CI/CD via GitHub Actions and Comfy-Org/publish-node-action",
+        "status": "Accepted",
+        "domain": "deployment",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0005"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0007": {
+        "path": "docs/blueprint/adrs/0007-testing-strategy.md",
+        "title": "Testing Strategy — Syntax Validation and Manual Browser Smoke Tests",
+        "status": "Accepted",
+        "domain": "testing",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0001",
+          "ADR-0003"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "ADR-0008": {
+        "path": "docs/blueprint/adrs/0008-widget-name-detection.md",
+        "title": "Widget Detection by Name, Not by Node Type",
+        "status": "Accepted",
+        "domain": "api-design",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0002"
+        ],
+        "github_issues": [],
+        "created": "2026-05-21"
+      },
+      "TRP-001": {
+        "path": "docs/trps/regression-gaps-initial-scaffold.md",
+        "title": "Initial Scaffold — Coverage Gaps from First Feature Commit",
+        "status": "Active",
+        "created": "2026-05-21",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0007"
+        ]
+      }
+    },
+    "github_issues": {},
+    "last_trp": 1
+  },
+  "generated_artifacts": [
+    {
+      "id": "PRD-001",
+      "type": "prd",
+      "path": "docs/blueprint/prds/project-overview.md",
+      "title": "comfyui-sampler-info — Product Requirements Document",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0001",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0001-project-language.md",
+      "title": "Project Language Choice — Python Stub + Vanilla JavaScript",
+      "status": "Accepted",
+      "domain": "build-tooling",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0002",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0002-frontend-only-plugin-architecture.md",
+      "title": "Frontend-Only ComfyUI Plugin Architecture",
+      "status": "Accepted",
+      "domain": "frontend-framework",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0003",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0003-single-file-js-implementation.md",
+      "title": "Single-File JavaScript Implementation (No Bundler)",
+      "status": "Accepted",
+      "domain": "build-tooling",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0004",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0004-static-json-corpus.md",
+      "title": "Static JSON Files as the Metadata Corpus",
+      "status": "Accepted",
+      "domain": "data-layer",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0005",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0005-package-management-and-distribution.md",
+      "title": "Package Management and Distribution via pyproject.toml and Comfy Registry",
+      "status": "Accepted",
+      "domain": "deployment",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0006",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0006-ci-cd-github-actions.md",
+      "title": "CI/CD via GitHub Actions and Comfy-Org/publish-node-action",
+      "status": "Accepted",
+      "domain": "deployment",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0007",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0007-testing-strategy.md",
+      "title": "Testing Strategy — Syntax Validation and Manual Browser Smoke Tests",
+      "status": "Accepted",
+      "domain": "testing",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0008",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0008-widget-name-detection.md",
+      "title": "Widget Detection by Name, Not by Node Type",
+      "status": "Accepted",
+      "domain": "api-design",
+      "created": "2026-05-21"
+    },
+    {
+      "id": "TRP-001",
+      "type": "trp",
+      "path": "docs/trps/regression-gaps-initial-scaffold.md",
+      "title": "Initial Scaffold — Coverage Gaps from First Feature Commit",
+      "status": "Active",
+      "created": "2026-05-21"
+    }
+  ]
+}
