@@ -8,12 +8,12 @@
     "simple": {
       "year": 2022,
       "summary": "Naive equally-spaced sigma schedule. The plainest scheduler — used for testing or with samplers that bring their own pacing.",
-      "good_for": "Baseline / unusual samplers; rarely the best practical choice"
+      "good_for": "Useful when a sampler brings its own pacing (dpm_adaptive, dpm_fast) or as a reference baseline; most general-purpose workflows benefit from karras or sgm_uniform instead"
     },
     "normal": {
       "year": 2022,
       "summary": "Standard scheduler matching the model's training noise schedule. Conservative default.",
-      "good_for": "Safe default when you don't know what else to pick"
+      "good_for": "Safe starting point that matches the model's training; a fine first pick before trying karras or sgm_uniform"
     },
     "karras": {
       "year": 2022,

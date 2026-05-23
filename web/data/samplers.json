@@ -67,7 +67,7 @@
       "order": 2,
       "type": "deterministic x0-prediction",
       "summary": "Exponential-integrator Heun with x0 prediction. Recent addition; less battle-tested than dpmpp_2m.",
-      "good_for": "Experimental — try when default solvers stall",
+      "good_for": "Recent exponential-integrator entry; some users report cleaner detail on Flux/SD3 compared to vanilla heun",
       "pairs_with": ["karras", "exponential"]
     },
     "exp_heun_2_x0_sde": {
@@ -76,7 +76,7 @@
       "order": 2,
       "type": "stochastic (SDE)",
       "summary": "Stochastic variant of exp_heun_2_x0.",
-      "good_for": "Experimental SDE alternative to dpmpp_2m_sde",
+      "good_for": "Stochastic exponential-integrator alternative to dpmpp_2m_sde; worth a try when variety matters and dpmpp_2m_sde looks stale",
       "pairs_with": ["karras", "exponential"]
     },
 
@@ -86,7 +86,7 @@
       "order": 2,
       "type": "deterministic single-step",
       "summary": "Original DPM-Solver second-order. Largely superseded by dpmpp_2m for the same cost.",
-      "good_for": "Historical reference; prefer dpmpp_2m today",
+      "good_for": "Foundational DPM-Solver; dpmpp_2m typically gives comparable results at similar cost in modern workflows",
       "pairs_with": ["karras", "exponential"],
       "supersedes_by": "dpmpp_2m"
     },
@@ -96,7 +96,7 @@
       "order": 2,
       "type": "ancestral (stochastic)",
       "summary": "DPM-Solver-2 with noise injection. Largely superseded by dpmpp_2m_sde.",
-      "good_for": "Historical reference; prefer dpmpp_2m_sde",
+      "good_for": "Foundational ancestral DPM-Solver; dpmpp_2m_sde usually gives comparable variety with less per-step cost",
       "pairs_with": ["karras"],
       "supersedes_by": "dpmpp_2m_sde"
     },
@@ -106,7 +106,7 @@
       "order": "variable",
       "type": "deterministic multistep",
       "summary": "k-diffusion's classical linear multistep. Pre-DPM++ era; less competitive today.",
-      "good_for": "Mostly historical",
+      "good_for": "Pre-DPM++ workhorse; some users still favor its character on certain SD1.5 checkpoints",
       "pairs_with": ["karras"]
     },
     "dpm_fast": {
@@ -244,7 +244,7 @@
       "order": 1,
       "type": "stochastic",
       "summary": "Original DDPM sampler (Ho et al). Needs hundreds of steps to converge — historical reference.",
-      "good_for": "Almost never in practice; use dpmpp_2m or dpmpp_2m_sde instead",
+      "good_for": "Reference implementation of the original diffusion paper; modern multistep solvers (dpmpp_2m, dpmpp_2m_sde) usually reach the same point in far fewer steps",
       "pairs_with": ["normal"],
       "supersedes_by": "dpmpp_2m"
     },
@@ -264,7 +264,7 @@
       "order": "variable",
       "type": "deterministic multistep",
       "summary": "Improved Pseudo-Numerical Diffusion Methods. Valid alternative to dpmpp_2m; less popular.",
-      "good_for": "Niche use; try when dpmpp_2m fails",
+      "good_for": "Worth a try when dpmpp_2m's character doesn't suit a style; same convergence class with subtly different behavior",
       "pairs_with": ["karras"]
     },
     "ipndm_v": {
@@ -273,7 +273,7 @@
       "order": "variable",
       "type": "variance-preserving deterministic",
       "summary": "Variance-preserving iPNDM. Same niche as ipndm.",
-      "good_for": "Niche use",
+      "good_for": "Variance-preserving sibling of ipndm; some users prefer it on high-CFG SDXL when ipndm output drifts",
       "pairs_with": ["karras"]
     },
     "deis": {
@@ -328,7 +328,7 @@
       "order": 1,
       "type": "deterministic with gradient refinement",
       "summary": "Adds a gradient-estimation refinement step per sample step.",
-      "good_for": "Experimental — try as an alternative to euler",
+      "good_for": "Worth a try when euler results look soft — the gradient refinement step can help with fine detail at 15-25 steps",
       "pairs_with": ["karras", "normal"]
     },
     "gradient_estimation_cfg_pp": {
@@ -337,7 +337,7 @@
       "order": 1,
       "type": "+ CFG++",
       "summary": "gradient_estimation with CFG++ rescaling.",
-      "good_for": "Experimental, low-CFG",
+      "good_for": "gradient_estimation's character at CFG 2-4 without high-CFG burn",
       "pairs_with": ["karras", "normal"]
     },
     "er_sde": {
@@ -346,7 +346,7 @@
       "order": "variable",
       "type": "stochastic",
       "summary": "Exponential-Reverse SDE solver. Recent research entry.",
-      "good_for": "Experimental SDE alternative",
+      "good_for": "Recent SDE entry — worth a try for stylistic variation when dpmpp_2m_sde feels stale on Flux or SDXL",
       "pairs_with": ["karras", "exponential"]
     },
     "seeds_2": {
@@ -355,7 +355,7 @@
       "order": 2,
       "type": "stochastic",
       "summary": "SEEDS stochastic solver, 2-stage variant.",
-      "good_for": "Experimental",
+      "good_for": "Recent SDE family; some users have reported pleasant results on illustrative styles and Flux",
       "pairs_with": ["karras"]
     },
     "seeds_3": {
@@ -364,7 +364,7 @@
       "order": 3,
       "type": "stochastic",
       "summary": "SEEDS stochastic solver, 3-stage variant.",
-      "good_for": "Experimental higher-order",
+      "good_for": "Higher-order SEEDS — extra accuracy at extra per-step cost; mainly for comparison with seeds_2",
       "pairs_with": ["karras"]
     },
     "sa_solver": {
@@ -537,7 +537,7 @@
       "match": "^abnorsett",
       "family": "Adams-Bashforth-Nørsett",
       "summary": "Adams-Bashforth predictor with Nørsett correction. Hybrid multistep family.",
-      "good_for": "Experimental predictor-corrector",
+      "good_for": "Predictor-corrector exploration in RES4LYF; worth a try when predictor-only solvers like ipndm drift on Flux/SD3",
       "pairs_with": ["karras", "exponential"]
     },
     {
@@ -551,14 +551,14 @@
       "match": "^pec\\d",
       "family": "Predictor-Evaluator-Corrector (PEC)",
       "summary": "Hybrid PEC iteration — predict, then iteratively correct.",
-      "good_for": "Experimental",
+      "good_for": "PEC iteration helps when a predictor-only solver diverges; worth a try at low step counts on Flux/SD3",
       "pairs_with": ["karras"]
     },
     {
       "match": "^(ralston|midpoint|heun)_\\d+s$",
       "family": "Classical Runge-Kutta (low-order)",
       "summary": "Classical low-order Runge-Kutta variants. Educational / baseline.",
-      "good_for": "Baseline comparison; rarely the best practical choice",
+      "good_for": "Useful for understanding sampler theory or as a baseline reference; dedicated diffusion solvers usually win on quality-per-step for actual renders",
       "pairs_with": ["normal", "simple"]
     },
     {
