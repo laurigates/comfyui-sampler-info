@@ -54,6 +54,172 @@
       "year": 2024,
       "summary": "RES4LYF custom schedule using a tangent-based pacing curve. Tuned for the RES4LYF RK sampler family.",
       "good_for": "Pair with RES4LYF samplers (res_Ns, rk_*, lawson_*, etc.)"
+    },
+
+    "unipc": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's default flow-matching scheduler. Couples UniPC integration with Wan's sigma trajectory — picks both the algorithm and the schedule in one widget.",
+      "good_for": "Wan2.x I2V/T2V; usually the first scheduler to try on a fresh Wan workflow"
+    },
+    "unipc/beta": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's unipc with beta-distribution sigma spacing. Concentrates steps where the model needs them most.",
+      "good_for": "Wan2.x when unipc's stock pacing looks off — beta spacing can help detail in late steps"
+    },
+    "dpm++": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's DPM-Solver++ adaptation for flow matching. Deterministic multistep.",
+      "good_for": "Wan2.x when you want DPM++ character; some users find it cleaner than unipc on still-heavy clips"
+    },
+    "dpm++/beta": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's dpm++ with beta-distribution sigma spacing.",
+      "good_for": "Wan2.x alternative pacing for dpm++"
+    },
+    "dpm++_sde": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's DPM-Solver++ in SDE form — adds noise each step. Stochastic variant of dpm++.",
+      "good_for": "Wan2.x when motion-heavy clips look stale; SDE can add variety"
+    },
+    "dpm++_sde/beta": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's dpm++_sde with beta-distribution sigma spacing.",
+      "good_for": "Wan2.x SDE with alternative pacing"
+    },
+    "euler": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's Euler adaptation for flow matching. Backed by Diffusers' FlowMatchEulerDiscreteScheduler. The simplest predictable baseline.",
+      "good_for": "Wan2.x conservative baseline; useful as a reference when comparing other schedulers"
+    },
+    "euler/beta": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's flow-matching Euler with beta-distribution sigma spacing.",
+      "good_for": "Wan2.x Euler with alternative pacing"
+    },
+    "longcat_distill_euler": {
+      "year": 2025,
+      "summary": "WanVideoWrapper's Euler tuned for LongCat-distilled Wan checkpoints. Applies a fixed 50-step distillation pacing curve regardless of the steps widget.",
+      "good_for": "LongCat-distilled Wan checkpoints; likely off-target outside that lineage",
+      "notes": "Specialized for LongCat distillation — pacing is fixed by the distillation, not the steps widget"
+    },
+    "deis": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's DEIS (Diffusion Exponential Integrator) for flow matching. Multistep.",
+      "good_for": "Wan2.x few-step regimes (8-15); some users like DEIS for clean motion"
+    },
+    "lcm": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's Latent Consistency scheduler for flow matching. Designed for LCM-distilled Wan checkpoints.",
+      "good_for": "LCM-distilled Wan checkpoints only; off-target on non-distilled weights"
+    },
+    "lcm/beta": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's lcm with beta-distribution sigma spacing.",
+      "good_for": "LCM-distilled Wan with alternative pacing"
+    },
+    "res_multistep": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's RES (Hochbruck-Ostermann exponential RK) multistep scheduler for flow matching.",
+      "good_for": "Wan2.x alternative to dpm++; some users find RES handles fine detail well"
+    },
+    "er_sde": {
+      "year": 2024,
+      "summary": "WanVideoWrapper's ER-SDE (Exponential-Reverse SDE) scheduler for flow matching.",
+      "good_for": "Wan2.x experimental SDE alternative; worth a try when default schedulers feel stale"
+    },
+    "flowmatch_causvid": {
+      "year": 2025,
+      "summary": "WanVideoWrapper scheduler tuned for CausVid (causal video) distilled checkpoints.",
+      "good_for": "CausVid-distilled Wan workflows; behavior outside that context is model-dependent",
+      "notes": "verify"
+    },
+    "flowmatch_distill": {
+      "year": 2025,
+      "summary": "WanVideoWrapper scheduler for generic flow-matching distilled checkpoints — fewer-step pacing curve.",
+      "good_for": "Distilled Wan checkpoints aiming for low step counts (4-12)",
+      "notes": "verify"
+    },
+    "flowmatch_pusa": {
+      "year": 2025,
+      "summary": "WanVideoWrapper scheduler tuned for Pusa-style flow-matching variants.",
+      "good_for": "Pusa-style Wan checkpoints; behavior outside that context is model-dependent",
+      "notes": "verify"
+    },
+    "multitalk": {
+      "year": 2025,
+      "summary": "WanVideoWrapper scheduler tuned for the MultiTalk lip-sync / audio-driven workflows.",
+      "good_for": "MultiTalk audio-driven Wan workflows; off-target otherwise",
+      "notes": "verify"
+    },
+    "sa_ode_stable": {
+      "year": 2025,
+      "summary": "WanVideoWrapper's stabilized SA-ODE (Stochastic Adams ODE) scheduler for flow matching.",
+      "good_for": "Wan2.x experimental; SA-Solver family is known for solid few-step performance",
+      "notes": "verify"
+    },
+    "rcm": {
+      "year": 2025,
+      "summary": "WanVideoWrapper's rCM (reverse Consistency Model) flow-matching scheduler.",
+      "good_for": "rCM-distilled Wan checkpoints; specialized",
+      "notes": "verify"
+    },
+    "vibt_unipc": {
+      "year": 2025,
+      "summary": "WanVideoWrapper's ViBT UniPC variant — newer addition with adjusted tangent treatment.",
+      "good_for": "Wan2.x when standard unipc results look stale; less battle-tested than unipc",
+      "notes": "verify"
+    },
+
+    "FlowMatchDiscreteScheduler": {
+      "year": 2024,
+      "summary": "HunyuanVideoWrapper's default scheduler. Discrete-time flow-matching Euler — the simplest, most predictable choice.",
+      "good_for": "HunyuanVideo default; usually the first to try on a fresh HunyuanVideo workflow"
+    },
+    "DPMSolverMultistepScheduler": {
+      "year": 2022,
+      "summary": "HunyuanVideoWrapper using Diffusers' DPM-Solver++ multistep, deterministic mode.",
+      "good_for": "HunyuanVideo when you want DPM++ character; some users prefer it over FlowMatchDiscrete on detail-heavy clips"
+    },
+    "SDE-DPMSolverMultistepScheduler": {
+      "year": 2023,
+      "summary": "HunyuanVideoWrapper using Diffusers' DPM-Solver++ multistep in SDE form — adds noise each step.",
+      "good_for": "HunyuanVideo when motion-heavy clips look stale; SDE adds variety at some cost in determinism"
+    },
+    "SASolverScheduler": {
+      "year": 2024,
+      "summary": "HunyuanVideoWrapper using Diffusers' SA-Solver (Stochastic Adams).",
+      "good_for": "HunyuanVideo few-step regimes; SA-Solver family is competitive at 10-20 steps"
+    },
+    "UniPCMultistepScheduler": {
+      "year": 2023,
+      "summary": "HunyuanVideoWrapper using Diffusers' UniPC multistep predictor-corrector.",
+      "good_for": "HunyuanVideo at lower step counts (10-20) when you want UniPC convergence behavior"
+    },
+
+    "Default for model": {
+      "year": null,
+      "summary": "HiDream-Sampler passthrough — uses whichever scheduler the loaded model recommends. The least surprising option when you're unsure.",
+      "good_for": "HiDream when you want the checkpoint's recommended pacing without thinking about it"
+    },
+    "UniPC": {
+      "year": 2023,
+      "summary": "HiDream-Sampler's UniPC option (display-name). Standard UniPC predictor-corrector. Maps to the same algorithm as core uni_pc.",
+      "good_for": "HiDream at low step counts (10-15) for predictor-corrector convergence"
+    },
+    "Euler": {
+      "year": 2022,
+      "summary": "HiDream-Sampler's Euler option (display-name). Plain first-order Euler — the simplest baseline.",
+      "good_for": "HiDream conservative baseline; predictable and fast"
+    },
+    "Karras Euler": {
+      "year": 2022,
+      "summary": "HiDream-Sampler's Euler with Karras sigma spacing.",
+      "good_for": "HiDream when Euler results need better noise pacing — Karras spacing usually helps with detail"
+    },
+    "Karras Exponential": {
+      "year": 2022,
+      "summary": "HiDream-Sampler's Karras exponential schedule. Smoother sigma transitions than Karras Euler's underlying schedule.",
+      "good_for": "HiDream when Karras Euler looks harsh; exponential pacing tends to be gentler"
     }
   },
 

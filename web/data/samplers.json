@@ -412,6 +412,88 @@
       "summary": "UniPC with B^h_2 coefficient variant. Slightly different convergence behavior than uni_pc.",
       "good_for": "Low-step regimes; try when uni_pc results look off",
       "pairs_with": ["karras", "exponential"]
+    },
+
+    "unipc_bh1": {
+      "year": 2024,
+      "family": "UniPC",
+      "order": "variable",
+      "type": "deterministic predictor-corrector (B^h_1)",
+      "summary": "FramePackWrapper's UniPC with B^h_1 coefficient. Same algorithm family as core uni_pc but distinct token (no underscore between 'uni' and 'pc'). FramePack's default.",
+      "good_for": "FramePack image-to-video; the recommended starting point for that wrapper",
+      "pairs_with": ["karras", "exponential"],
+      "notes": "Same UniPC math as core uni_pc; the rename comes from FramePack's wrapper"
+    },
+    "unipc_bh2": {
+      "year": 2024,
+      "family": "UniPC",
+      "order": "variable",
+      "type": "deterministic predictor-corrector (B^h_2)",
+      "summary": "FramePackWrapper's UniPC with B^h_2 coefficient. Distinct token from core uni_pc_bh2 — same algorithm, different wrapper naming.",
+      "good_for": "FramePack image-to-video; try if unipc_bh1 results feel off",
+      "pairs_with": ["karras", "exponential"],
+      "notes": "Same UniPC math as core uni_pc_bh2; the rename comes from FramePack's wrapper"
+    },
+
+    "euler_perlin": {
+      "year": 2024,
+      "family": "Euler",
+      "order": 1,
+      "type": "deterministic + Perlin-modulated noise",
+      "summary": "Iterative-Mixer's Euler variant with Perlin-noise-modulated noise injection. Produces softer textures than plain euler in mixing workflows.",
+      "good_for": "ComfyUI-Iterative-Mixer workflows; some users find it pleasant for painterly or organic textures",
+      "pairs_with": ["karras", "normal"],
+      "notes": "Iterative-Mixer-specific; behavior outside that node is undefined"
+    },
+
+    "pndm": {
+      "year": 2021,
+      "family": "PNDM",
+      "order": "variable",
+      "type": "deterministic multistep",
+      "summary": "Pseudo-Numerical Methods for Diffusion (Liu et al). Diffusers-naming. Predecessor to iPNDM; ComfyUI core uses the improved variant. Surfaces in FluxTrainer's sampler selector.",
+      "good_for": "FluxTrainer compatibility; modern workflows usually pick ipndm or dpmpp_2m instead",
+      "pairs_with": ["karras"],
+      "supersedes_by": "ipndm"
+    },
+    "euler_a": {
+      "year": 2022,
+      "family": "Euler",
+      "order": 1,
+      "type": "ancestral (stochastic)",
+      "summary": "Diffusers-naming alias for euler_ancestral. Same algorithm; appears in FluxTrainer and other Diffusers-derived wrappers.",
+      "good_for": "Same use cases as euler_ancestral — anime, illustrative styles, creative variety",
+      "pairs_with": ["normal", "karras"],
+      "notes": "Equivalent to core euler_ancestral; preferred name varies by wrapper"
+    },
+    "dpm_2_a": {
+      "year": 2022,
+      "family": "DPM-Solver",
+      "order": 2,
+      "type": "ancestral (stochastic)",
+      "summary": "Diffusers-naming alias for dpm_2_ancestral. Surfaces in FluxTrainer's sampler selector.",
+      "good_for": "FluxTrainer compatibility; modern workflows often pick dpmpp_2m_sde for similar variety",
+      "pairs_with": ["karras"],
+      "notes": "Equivalent to core dpm_2_ancestral"
+    },
+    "dpmsolver": {
+      "year": 2022,
+      "family": "DPM-Solver",
+      "order": 2,
+      "type": "deterministic multistep",
+      "summary": "Diffusers-naming for the original DPM-Solver. Surfaces in FluxTrainer's sampler selector.",
+      "good_for": "FluxTrainer compatibility; modern workflows often reach for dpmpp_2m for the same role",
+      "pairs_with": ["karras", "exponential"],
+      "notes": "Roughly equivalent to core dpm_2 / dpmpp_2m depending on Diffusers config"
+    },
+    "dpmsingle": {
+      "year": 2022,
+      "family": "DPM-Solver",
+      "order": 2,
+      "type": "deterministic single-step",
+      "summary": "Diffusers-naming for DPM-Solver single-step. Single-step variant evaluates the model twice per step rather than reusing past evaluations.",
+      "good_for": "FluxTrainer compatibility; trades efficiency for slightly different convergence character",
+      "pairs_with": ["karras", "exponential"]
     }
   },
 
