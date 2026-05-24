@@ -37,7 +37,11 @@ jobs:
       - name: Setup Biome
         uses: biomejs/setup-biome@v2
         with:
-          version: latest
+          # Pin to the schema version declared in biome.json. Biome 2.x
+          # rejects v1 keys (`organizeImports`, `include`, `ignore`) and
+          # the v1.9.4 `$schema` URL. Bump in lockstep with a config
+          # migration via `biome migrate`.
+          version: 1.9.4
 
       - name: Biome check
         run: biome check .
@@ -62,6 +66,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # gitleaks scans <prev>^..<head>; the parent commit must be
+          # present locally, so a shallow clone fails with
+          # "stderr is not empty".
+          fetch-depth: 0
 
       - name: Gitleaks secret scan
         uses: gitleaks/gitleaks-action@v2
