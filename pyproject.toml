@@ -47,9 +47,6 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.comfy]
-# TODO: register a Publisher at https://registry.comfy.org/ and replace
-# this with the assigned PublisherId before the first publish. See
-# RELEASE-CHECKLIST.md for the step-by-step.
-PublisherId = "TODO-publisher-id"
+PublisherId = "laurigates"
 DisplayName = "Sampler Info"
 Icon = ""
