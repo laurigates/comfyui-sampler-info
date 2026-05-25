@@ -814,6 +814,12 @@ function openPicker(widget, node) {
   document.addEventListener("keydown", onPickerKeydown, true);
 
   renderRows();
+  // Center the active row (the current value) so the picker opens with the
+  // user's existing selection in the middle of the visible list, not at the
+  // top — long lists (110+ samplers) would otherwise hide the selection
+  // far below the fold.
+  const activeRow = PICKER_STATE.visibleRows[PICKER_STATE.activeIndex];
+  if (activeRow) activeRow.scrollIntoView({ block: "center" });
   searchEl.focus();
 }
 
