@@ -18,8 +18,9 @@ so ComfyUI's loader picks up the JS extension.
 | [ADR-0004](docs/blueprint/adrs/0004-static-json-corpus.md) | Static JSON Corpus Format | data-layer |
 | [ADR-0005](docs/blueprint/adrs/0005-package-management-and-distribution.md) | Package Management via pyproject.toml | deployment |
 | [ADR-0006](docs/blueprint/adrs/0006-ci-cd-github-actions.md) | CI/CD via GitHub Actions | deployment |
-| [ADR-0007](docs/blueprint/adrs/0007-testing-strategy.md) | Testing Strategy (Syntax + Browser Smoke) | testing |
+| [ADR-0007](docs/blueprint/adrs/0007-testing-strategy.md) | Testing Strategy (Syntax + Browser Smoke) — *Superseded by ADR-0009* | testing |
 | [ADR-0008](docs/blueprint/adrs/0008-widget-name-detection.md) | Widget Detection by Name | api-design |
+| [ADR-0009](docs/blueprint/adrs/0009-adopt-vitest.md) | Vitest as Dev-Only Test Harness | testing |
 
 **Test Coverage**: [`docs/trps/regression-gaps-initial-scaffold.md`](docs/trps/regression-gaps-initial-scaffold.md) tracks coverage gaps from initial release (v0.1.0 at 100% feature completion).
 
@@ -53,7 +54,10 @@ Two additive enhancements on combo widgets named `sampler_name` /
 | `.github/dependabot.yml` | Automated dependency update PRs. |
 | `.pre-commit-config.yaml` | Pre-commit hooks: ruff, biome, gitleaks, JSON validation. |
 | `biome.json` | Biome (JS/JSON) linter + formatter config. |
+| `package.json` | **Dev-only** — Vitest test harness. Nothing ships from here; see ADR-0009. |
+| `vitest.config.js` | Vitest configuration (Node env, `tests/js/**/*.test.js`). |
 | `tests/` | pytest test suite: Python stub + JSON corpus validation. |
+| `tests/js/` | Vitest test suite for pure JS functions in `web/js/sampler-info.js` (ADR-0009). |
 | `RELEASE-CHECKLIST.md` | Manual publish steps (one-time + per-release). |
 
 ## Hard rules
@@ -160,6 +164,7 @@ Every field is optional. The renderer skips missing fields gracefully.
 
 ```sh
 uv sync --group dev          # install dev dependencies (ruff, pytest, pre-commit)
+npm install --no-audit --no-fund  # install Vitest for the JS test harness (dev-only — see ADR-0009)
 pre-commit install           # activate pre-commit hooks
 ```
 
@@ -179,9 +184,14 @@ npx @biomejs/biome check --write .  # lint + autofix + format JS/JSON
 ### Tests
 
 ```sh
-uv run pytest -v             # run all tests
+# Python (corpus integrity + __init__ stub)
+uv run pytest -v             # run all Python tests
 uv run pytest tests/test_corpus.py  # corpus validation only
 uv run pytest tests/test_init.py    # Python stub tests only
+
+# JavaScript (pure functions in web/js/sampler-info.js — ADR-0009)
+npm test                     # run Vitest once
+npm run test:watch           # watch mode for TDD
 ```
 
 ### Iterating on JS / CSS / JSON

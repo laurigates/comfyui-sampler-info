@@ -1,19 +1,27 @@
 ---
 id: ADR-0007
 date: 2026-05-21
-status: Accepted
+status: Superseded by ADR-0009
+superseded-by: ADR-0009
 deciders: Lauri Gates
 domain: testing
 relates-to:
   - PRD-001
   - ADR-0001
   - ADR-0003
+  - ADR-0009
   - TRP-001
 github-issues: []
 name: blueprint-derive-adr
 ---
 
 # ADR-0007: Testing Strategy — Syntax Validation and Manual Browser Smoke Tests
+
+> **Superseded by [ADR-0009](0009-adopt-vitest.md)** on the test framework
+> decision. Vitest is now adopted as a dev-only harness for the pure JS
+> functions. The manual smoke matrix and the JSON corpus parse check
+> remain in force; see ADR-0009 for the precise scope of supersedure
+> (ADR-0003's single-file runtime is unchanged).
 
 ## Decision Drivers
 

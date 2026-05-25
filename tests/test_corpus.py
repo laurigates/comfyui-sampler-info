@@ -40,6 +40,15 @@ def test_exact_entries_have_summary(corpus):
         assert "summary" in entry, f"exact[{token!r}] missing 'summary'"
 
 
+def test_exact_keys_have_no_whitespace(corpus):
+    """Exact token keys must not have leading or trailing whitespace."""
+    for token in corpus["exact"]:
+        assert token == token.strip(), (
+            f"exact key {token!r} has leading/trailing whitespace; "
+            f"stripped form is {token.strip()!r}"
+        )
+
+
 def test_prefix_entries_have_match(corpus):
     """If 'prefix' exists, each entry must have a 'match' regex."""
     if "prefix" not in corpus:

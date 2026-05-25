@@ -7,6 +7,7 @@ __pycache__/
 .venv/
 .pytest_cache/
 node_modules/
+coverage/
 
 # Editor
 .vscode/

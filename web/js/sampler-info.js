@@ -41,14 +41,14 @@ async function loadCorpus() {
   }
 }
 
-function compileCorpus(raw) {
+export function compileCorpus(raw) {
   const prefix = (raw?.prefix || [])
     .map((p) => ({ ...p, re: safeRegex(p.match) }))
     .filter((p) => p.re);
   return { exact: raw?.exact || {}, prefix };
 }
 
-function safeRegex(pattern) {
+export function safeRegex(pattern) {
   try {
     return new RegExp(pattern);
   } catch (e) {
@@ -57,7 +57,7 @@ function safeRegex(pattern) {
   }
 }
 
-function lookup(corpus, token) {
+export function lookup(corpus, token) {
   if (!token || typeof token !== "string") return null;
   if (corpus.exact[token]) return corpus.exact[token];
   for (const p of corpus.prefix) {
@@ -465,7 +465,7 @@ function buildRowEl(value, info, isCurrent, nameMatches) {
 // token must match somewhere on the row (name or metadata). The name
 // match is weighted 10× metadata matches.
 
-function fuzzyScore(query, target) {
+export function fuzzyScore(query, target) {
   if (!query) return { score: 0, matches: [] };
   const q = query.toLowerCase();
   const t = target.toLowerCase();
@@ -509,7 +509,7 @@ function fuzzyScore(query, target) {
   return { score, matches };
 }
 
-function fuzzyRank(value, info, query) {
+export function fuzzyRank(value, info, query) {
   if (!query) return { score: 0, nameMatches: [] };
   const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return { score: 0, nameMatches: [] };
@@ -628,7 +628,9 @@ function moveActive(delta) {
   let i = PICKER_STATE.activeIndex + delta;
   if (i < 0) i = rows.length - 1;
   if (i >= rows.length) i = 0;
-  rows.forEach((r, j) => r.classList.toggle("si-active", j === i));
+  rows.forEach((r, j) => {
+    r.classList.toggle("si-active", j === i);
+  });
   PICKER_STATE.activeIndex = i;
   rows[i].scrollIntoView({ block: "nearest" });
 }
@@ -645,7 +647,7 @@ function selectAndClose(value) {
   }
   try {
     refreshWidgetTooltip(widget);
-  } catch (e) {
+  } catch (_e) {
     /* ignored */
   }
   node?.setDirtyCanvas?.(true, true);
