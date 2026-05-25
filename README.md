@@ -8,13 +8,8 @@ modal you can actually navigate — *and* tells you what each sampler is for.
 > No descriptions, no dates, no hint of when to use what.
 > This pack fixes that.
 
-<!-- TODO: drop a screencap of the picker (sampler dropdown opened, "dpm sde"
-typed, rows filtered + sorted, matched chars highlighted) at /docs/picker.png
-and a tooltip-on-hover shot at /docs/tooltip.png, then wire them up:
-
 ![picker dialog](docs/picker.png)
 ![hover tooltip](docs/tooltip.png)
--->
 
 ## What it does
 

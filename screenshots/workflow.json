@@ -1,0 +1,41 @@
+{
+  "last_node_id": 1,
+  "last_link_id": 0,
+  "nodes": [
+    {
+      "id": 1,
+      "type": "KSampler",
+      "pos": [400, 200],
+      "size": [320, 262],
+      "flags": {},
+      "order": 0,
+      "mode": 0,
+      "inputs": [
+        { "name": "model", "type": "MODEL", "link": null },
+        { "name": "positive", "type": "CONDITIONING", "link": null },
+        { "name": "negative", "type": "CONDITIONING", "link": null },
+        { "name": "latent_image", "type": "LATENT", "link": null }
+      ],
+      "outputs": [
+        { "name": "LATENT", "type": "LATENT", "links": null, "shape": 3 }
+      ],
+      "properties": {
+        "Node name for S&R": "KSampler"
+      },
+      "widgets_values": [
+        156680208700286,
+        "randomize",
+        20,
+        8,
+        "dpmpp_2m",
+        "karras",
+        1
+      ]
+    }
+  ],
+  "links": [],
+  "groups": [],
+  "config": {},
+  "extra": {},
+  "version": 0.4
+}
