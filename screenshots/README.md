@@ -126,4 +126,4 @@ issue, not the screenshot script.
 | `capture.mjs` | Playwright driver (single-file ESM) — loads workflow, clicks widget, screenshots picker + tooltip |
 | `workflow.json` | Single-`KSampler`-node workflow at a fixed position |
 | `package.json` | Pins `playwright` (the only npm dependency) |
-| `.dockerignore` | Keeps the build context lean — excludes `docs/`, `.git/`, `tests/`, etc. |
+| `Dockerfile.dockerignore` | Keeps the build context lean — excludes `docs/`, `.git/`, `tests/`, etc. Named per-Dockerfile (not a bare `.dockerignore`) so BuildKit consults it for `-f screenshots/Dockerfile` builds — a bare `.dockerignore` in a subdirectory is ignored; only `<Dockerfile>.dockerignore` next to it or `.dockerignore` at the context root is read. |
