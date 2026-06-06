@@ -1,7 +1,7 @@
 [project]
 name = "comfyui-sampler-info"
 description = "Rich metadata + fuzzy-search picker dialog for ComfyUI's sampler_name / sampler / scheduler combo widgets. Tooltip with year / family / ODE order / good-for, plus a centered modal that replaces the cryptic native dropdown."
-version = "0.1.1"
+version = "0.1.2"
 license = { text = "MIT" }
 readme = "README.md"
 requires-python = ">=3.10"

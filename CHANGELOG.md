@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.2](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.1...comfyui-sampler-info-v0.1.2) (2026-06-06)
+
+
+### Miscellaneous
+
+* **deps:** Bump gitleaks/gitleaks-action from 2 to 3 ([#31](https://github.com/laurigates/comfyui-sampler-info/issues/31)) ([4d9963c](https://github.com/laurigates/comfyui-sampler-info/commit/4d9963ce0e257a4d7b8489b338872202c96965a4))
+* **deps:** Bump googleapis/release-please-action from 4 to 5 ([#30](https://github.com/laurigates/comfyui-sampler-info/issues/30)) ([0eb9eff](https://github.com/laurigates/comfyui-sampler-info/commit/0eb9eff7f6928bcb39b7cd019d2382654949367e))
+
 ## [0.1.1](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.0...comfyui-sampler-info-v0.1.1) (2026-05-29)
 
 
