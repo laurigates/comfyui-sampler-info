@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.2...comfyui-sampler-info-v0.1.3) (2026-06-06)
+
+
+### Features
+
+* **build:** migrate to TypeScript + bun build ([#34](https://github.com/laurigates/comfyui-sampler-info/issues/34)) ([b94d6f4](https://github.com/laurigates/comfyui-sampler-info/commit/b94d6f488a379bc55f9441c1d4197121a90efb07))
+
 ## [0.1.2](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.1...comfyui-sampler-info-v0.1.2) (2026-06-06)
 
 
