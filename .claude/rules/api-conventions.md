@@ -1,6 +1,6 @@
 ---
 paths:
-  - "web/js/**/*.js"
+  - "src/**/*.ts"
 ---
 
 # ComfyUI API Conventions

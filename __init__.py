@@ -10,9 +10,13 @@ surfaces it on long-press.
 
 Corpus lives in `web/data/samplers.json` + `web/data/schedulers.json`
 so it can grow without code changes.
+
+The TypeScript source in `src/` is compiled to ESM via `bun build` and
+emitted to `web/dist/` (the corpus JSON is copied there too). ComfyUI
+serves `WEB_DIRECTORY` as the extension root. See ADR-0010.
 """
 
-WEB_DIRECTORY = "./web"
+WEB_DIRECTORY = "./web/dist"
 
 NODE_CLASS_MAPPINGS = {}
 NODE_DISPLAY_NAME_MAPPINGS = {}

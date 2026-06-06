@@ -3,13 +3,7 @@
 
 import { describe, expect, test } from "vitest";
 
-import {
-  compileCorpus,
-  fuzzyRank,
-  fuzzyScore,
-  lookup,
-  safeRegex,
-} from "../../web/js/sampler-info.js";
+import { compileCorpus, fuzzyRank, fuzzyScore, lookup, safeRegex } from "../../src/index.ts";
 
 // ============================================================
 // Gap 2: Corpus helpers

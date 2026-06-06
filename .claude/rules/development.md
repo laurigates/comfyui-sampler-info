@@ -1,6 +1,6 @@
 ---
 paths:
-  - "web/js/**/*.js"
+  - "src/**/*.ts"
   - "web/data/**/*.json"
   - "__init__.py"
 ---
@@ -10,9 +10,11 @@ paths:
 ## Project Context
 
 `comfyui-sampler-info` is a **frontend-only** ComfyUI custom-node pack.
-- `__init__.py` is a loader stub only — no Python nodes.
-- All logic lives in `web/js/sampler-info.js` (single file, ~900 lines).
-- Corpus data is in `web/data/samplers.json` and `web/data/schedulers.json`.
+- `__init__.py` is a loader stub only — no Python nodes. `WEB_DIRECTORY = "./web/dist"`.
+- All logic lives in `src/index.ts` (TypeScript), compiled to
+  `web/dist/index.js` via `bun build` (see ADR-0010).
+- Corpus data is in `web/data/samplers.json` and `web/data/schedulers.json`
+  (copied into `web/dist/data/` at build).
 
 ## Core Constraints
 
@@ -35,16 +37,23 @@ paths:
 - Bug fixes on `fix/<slug>` branches
 - Open PRs to `main`; do not push directly to `main`
 
-## Syntax Checks Before Commit
+## Gates Before Commit
 
 ```sh
-node --check web/js/sampler-info.js
+bun run typecheck
+bun run build
+bunx biome check .
+bun run knip
+node --check web/dist/index.js
 python -c "import json; [json.load(open(f)) for f in ['web/data/samplers.json','web/data/schedulers.json']]"
 ```
 
-## No Restart Required
+## Rebuild + Refresh (No Restart)
 
-Edits to JS / CSS / JSON take effect on browser hard-refresh (Ctrl+Shift+R / Cmd+Shift+R). No ComfyUI restart needed.
+After editing `src/index.ts` (or the corpus JSON), run `bun run build`,
+then hard-refresh the browser (Ctrl+Shift+R / Cmd+Shift+R). The served
+file is the built `web/dist/index.js`. No ComfyUI restart needed — only a
+rebuild + refresh.
 
 ## Versioning
 

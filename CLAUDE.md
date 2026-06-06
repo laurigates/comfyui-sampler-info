@@ -1,26 +1,29 @@
 # CLAUDE.md
 
 Frontend-only ComfyUI custom-node pack. No Python nodes — `__init__.py`
-just exports an empty `NODE_CLASS_MAPPINGS` and `WEB_DIRECTORY = "./web"`
-so ComfyUI's loader picks up the JS extension.
+just exports an empty `NODE_CLASS_MAPPINGS` and `WEB_DIRECTORY = "./web/dist"`
+so ComfyUI's loader picks up the built extension. The extension is
+authored in TypeScript (`src/index.ts`) and compiled to browser ESM via
+`bun build` (see ADR-0010).
 
 ## Documentation & Design Records
 
 **Full PRD**: See [`docs/blueprint/prds/project-overview.md`](docs/blueprint/prds/project-overview.md) for comprehensive requirements.
 
-**Architecture Decisions** (all Accepted):
+**Architecture Decisions:**
 
 | ID | Title | Domain |
 |----|----|--------|
-| [ADR-0001](docs/blueprint/adrs/0001-project-language.md) | Project Language — Python Stub + Vanilla JavaScript | build-tooling |
+| [ADR-0001](docs/blueprint/adrs/0001-project-language.md) | Project Language — Python Stub + Vanilla JavaScript — *Superseded by ADR-0010* | build-tooling |
 | [ADR-0002](docs/blueprint/adrs/0002-frontend-only-plugin-architecture.md) | Frontend-Only Plugin Architecture | frontend-framework |
-| [ADR-0003](docs/blueprint/adrs/0003-single-file-js-implementation.md) | Single-File JavaScript (No Bundler) | build-tooling |
+| [ADR-0003](docs/blueprint/adrs/0003-single-file-js-implementation.md) | Single-File JavaScript (No Bundler) — *Superseded by ADR-0010* | build-tooling |
 | [ADR-0004](docs/blueprint/adrs/0004-static-json-corpus.md) | Static JSON Corpus Format | data-layer |
 | [ADR-0005](docs/blueprint/adrs/0005-package-management-and-distribution.md) | Package Management via pyproject.toml | deployment |
 | [ADR-0006](docs/blueprint/adrs/0006-ci-cd-github-actions.md) | CI/CD via GitHub Actions | deployment |
 | [ADR-0007](docs/blueprint/adrs/0007-testing-strategy.md) | Testing Strategy (Syntax + Browser Smoke) — *Superseded by ADR-0009* | testing |
 | [ADR-0008](docs/blueprint/adrs/0008-widget-name-detection.md) | Widget Detection by Name | api-design |
 | [ADR-0009](docs/blueprint/adrs/0009-adopt-vitest.md) | Vitest as Dev-Only Test Harness | testing |
+| [ADR-0010](docs/blueprint/adrs/0010-adopt-typescript-bun-build.md) | Adopt TypeScript + bun build (supersedes ADR-0001, ADR-0003) | build-tooling |
 
 **Test Coverage**: [`docs/trps/regression-gaps-initial-scaffold.md`](docs/trps/regression-gaps-initial-scaffold.md) tracks coverage gaps from initial release (v0.1.0 at 100% feature completion).
 
@@ -44,20 +47,24 @@ Two additive enhancements on combo widgets named `sampler_name` /
 
 | Path | Purpose |
 |------|---------|
-| `__init__.py` | Loader stub. `WEB_DIRECTORY = "./web"`, empty mappings. |
-| `web/js/sampler-info.js` | The whole extension. Single file, ~900 lines. |
-| `web/data/samplers.json` | Sampler corpus — exact tokens + prefix regex families. |
+| `__init__.py` | Loader stub. `WEB_DIRECTORY = "./web/dist"`, empty mappings. |
+| `src/index.ts` | The whole extension — TypeScript source (port of the former single-file JS). Compiled to `web/dist/index.js`. |
+| `src/comfyui-shims.d.ts` | Types the `/scripts/app.js` runtime import (see ADR-0010 type-seam notes). |
+| `web/dist/` | **Generated** — `bun build` output (`index.js` + copied `data/`). Git-ignored; force-shipped to the registry via `[tool.comfy] includes`. Do not edit by hand. |
+| `web/data/samplers.json` | Sampler corpus — exact tokens + prefix regex families. Copied into `web/dist/data/` at build. |
 | `web/data/schedulers.json` | Scheduler corpus — same schema. |
-| `pyproject.toml` | Comfy Registry metadata. `PublisherId` is the only field you may need to touch. |
-| `.github/workflows/publish.yml` | Auto-publishes on `pyproject.toml` version bump. |
-| `.github/workflows/ci.yml` | CI: lint, format, test, and security checks on push/PR. |
+| `tsconfig.json` | TypeScript config — strict, `tsc --noEmit` type gate. |
+| `knip.json` | Dead-code / unused-dependency check config. |
+| `pyproject.toml` | Comfy Registry metadata. `PublisherId` + `[tool.comfy] includes`. |
+| `.github/workflows/publish.yml` | Builds the frontend, then auto-publishes on `pyproject.toml` version bump. |
+| `.github/workflows/ci.yml` | CI: lint, format, typecheck+build, test, and security checks on push/PR. |
 | `.github/dependabot.yml` | Automated dependency update PRs. |
 | `.pre-commit-config.yaml` | Pre-commit hooks: ruff, biome, gitleaks, JSON validation. |
-| `biome.json` | Biome (JS/JSON) linter + formatter config. |
-| `package.json` | **Dev-only** — Vitest test harness. Nothing ships from here; see ADR-0009. |
-| `vitest.config.js` | Vitest configuration (Node env, `tests/js/**/*.test.js`). |
+| `biome.json` | Biome (TS/JS/JSON) linter + formatter config. |
+| `package.json` | Dev toolchain — `bun build`, `tsc`, Vitest, Biome, knip. |
+| `vitest.config.js` | Vitest configuration (Node env, `tests/js/**/*.test.js`; imports `src/index.ts`). |
 | `tests/` | pytest test suite: Python stub + JSON corpus validation. |
-| `tests/js/` | Vitest test suite for pure JS functions in `web/js/sampler-info.js` (ADR-0009). |
+| `tests/js/` | Vitest test suite for the pure functions in `src/index.ts` (ADR-0009). |
 | `RELEASE-CHECKLIST.md` | Manual publish steps (one-time + per-release). |
 
 ## Hard rules
@@ -74,12 +81,15 @@ yet)` rather than fabricating a description.
 
 ### Pack directory name is part of the URL
 
-`web/js/sampler-info.js` is served at
-`/extensions/comfyui-sampler-info/js/sampler-info.js`. The pack dir
-name (`comfyui-sampler-info`) IS the URL segment. If anyone renames
-the dir, the `fetch(\`${DATA_BASE}/...\`)` calls break silently. Don't
-rename the pack dir; if absolutely necessary, sync the `EXT_NAME`
-constant at the top of `sampler-info.js`.
+The built `web/dist/index.js` is served at
+`/extensions/comfyui-sampler-info/index.js` (because `WEB_DIRECTORY =
+"./web/dist"`), and the corpus at
+`/extensions/comfyui-sampler-info/data/*.json`. The pack dir name
+(`comfyui-sampler-info`) IS the URL segment, and `DATA_BASE` derives the
+corpus URL from it (not from the JS file location). If anyone renames the
+dir, the `fetch(\`${DATA_BASE}/...\`)` calls break silently. Don't rename
+the pack dir; if absolutely necessary, sync the `EXT_NAME` constant at the
+top of `src/index.ts`.
 
 ### Frontend hook is version-sensitive
 
@@ -163,10 +173,22 @@ Every field is optional. The renderer skips missing fields gracefully.
 ### Setup
 
 ```sh
-uv sync --group dev          # install dev dependencies (ruff, pytest, pre-commit)
-npm install --no-audit --no-fund  # install Vitest for the JS test harness (dev-only — see ADR-0009)
+uv sync --group dev          # install Python dev dependencies (ruff, pytest, pre-commit)
+bun install                  # install the JS/TS toolchain (typescript, types, vitest, biome, knip)
 pre-commit install           # activate pre-commit hooks
 ```
+
+### Build
+
+```sh
+bun run build                # compile src/index.ts → web/dist/index.js (+ copy corpus)
+bun run typecheck            # tsc --noEmit type gate
+just build                   # same as `bun run build`
+```
+
+The served file is `web/dist/index.js` — `web/dist/` is git-ignored and
+generated. Build before testing live behavior or running the screenshot
+pipeline.
 
 ### Lint & format
 
@@ -176,9 +198,10 @@ uv run ruff check .          # lint Python
 uv run ruff check --fix .    # lint + autofix
 uv run ruff format .         # format Python
 
-# JavaScript / JSON
-npx @biomejs/biome check .   # lint + format check JS/JSON
-npx @biomejs/biome check --write .  # lint + autofix + format JS/JSON
+# TypeScript / JS / JSON
+bunx biome check .           # lint + format check
+bunx biome check --write .   # lint + autofix + format
+bun run knip                 # unused exports / dead-code / unused-dep check
 ```
 
 ### Tests
@@ -189,32 +212,38 @@ uv run pytest -v             # run all Python tests
 uv run pytest tests/test_corpus.py  # corpus validation only
 uv run pytest tests/test_init.py    # Python stub tests only
 
-# JavaScript (pure functions in web/js/sampler-info.js — ADR-0009)
-npm test                     # run Vitest once
-npm run test:watch           # watch mode for TDD
+# TypeScript (pure functions in src/index.ts — ADR-0009)
+bun run test                 # run Vitest once (imports src/index.ts directly)
+bun run test:watch           # watch mode for TDD
 ```
 
-### Iterating on JS / CSS / JSON
+### Iterating on TS / CSS / JSON
 
-**No ComfyUI restart needed.** The frontend serves these as static
-files; just hard-refresh (Ctrl+Shift+R / Cmd+Shift+R) the browser tab.
+The browser serves `web/dist/`, so **after editing `src/index.ts` you
+must `bun run build`** before hard-refreshing (Ctrl+Shift+R / Cmd+Shift+R).
+No ComfyUI restart is needed — only a rebuild + refresh. Editing the
+corpus JSON in `web/data/` also needs a `bun run build` (it is copied
+into `web/dist/data/`).
 
-If editing CSS that's injected via the JS `CSS` constant, you must
+If editing CSS that's injected via the `CSS` constant in `src/index.ts`,
 also dismiss any open picker dialog before it re-injects the style on
 next open.
 
-### Syntax checks before commit
+### Gates before commit
 
 ```sh
-node --check web/js/sampler-info.js
+bun run typecheck
+bun run build
+bunx biome check .
+bun run knip
 python -c "import json; [json.load(open(f)) for f in ['web/data/samplers.json','web/data/schedulers.json']]"
 ```
 
 ### Test live behavior
 
 ```sh
-# Verify the pack loaded and the static assets serve
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8188/extensions/comfyui-sampler-info/js/sampler-info.js
+# Verify the pack loaded and the built asset serves (build first)
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8188/extensions/comfyui-sampler-info/index.js
 ```
 
 ### Smoke matrix when changing the picker

@@ -93,8 +93,8 @@ not running:
   ```
 
   If `onPointerDown` is no longer the hook the frontend calls,
-  update the intercept in `web/js/sampler-info.js:enhanceNode()`
-  first, then regenerate.
+  update the intercept in `src/index.ts:enhanceNode()`, rebuild
+  (`bun run build`), then regenerate.
 
 ### "ComfyUI did not become ready" timeout
 

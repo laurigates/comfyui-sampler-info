@@ -1,18 +1,26 @@
 ---
 id: ADR-0003
 date: 2026-05-21
-status: Accepted
+status: Superseded by ADR-0010
 deciders: Lauri Gates
 domain: build-tooling
+superseded-by: ADR-0010
 relates-to:
   - PRD-001
   - ADR-0001
   - ADR-0002
+  - ADR-0010
 github-issues: []
 name: blueprint-derive-adr
 ---
 
 # ADR-0003: Single-File JavaScript Implementation (No Bundler)
+
+> **Superseded by [ADR-0010](0010-adopt-typescript-bun-build.md)** (2026-06-06):
+> a `bun build` step now compiles a single TypeScript source (`src/index.ts`)
+> to a single browser-ESM file (`web/dist/index.js`). The "one source → one
+> served file, loaded directly by the browser" property is preserved; the
+> "no bundler / no build step" constraint is what's superseded.
 
 ## Decision Drivers
 

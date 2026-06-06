@@ -1,16 +1,23 @@
 ---
 id: ADR-0001
 date: 2026-05-21
-status: Accepted
+status: Superseded by ADR-0010
 deciders: Lauri Gates
 domain: build-tooling
+superseded-by: ADR-0010
 relates-to:
   - PRD-001
+  - ADR-0010
 github-issues: []
 name: blueprint-derive-adr
 ---
 
 # ADR-0001: Project Language Choice — Python Stub + Vanilla JavaScript
+
+> **Superseded by [ADR-0010](0010-adopt-typescript-bun-build.md)** (2026-06-06):
+> the pack moved from vanilla JavaScript to TypeScript compiled to browser ESM
+> via `bun build`. The Python-stub `__init__.py` loader contract is unchanged;
+> only the JS-vs-TS language choice is superseded.
 
 ## Decision Drivers
 

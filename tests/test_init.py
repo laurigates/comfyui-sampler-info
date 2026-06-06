@@ -18,6 +18,6 @@ def test_node_class_mappings_empty():
 
 
 def test_web_directory_set():
-    """WEB_DIRECTORY must point to ./web."""
+    """WEB_DIRECTORY must point to ./web/dist (the bun build output; see ADR-0010)."""
     mod = importlib.import_module("__init__")
-    assert mod.WEB_DIRECTORY == "./web"
+    assert mod.WEB_DIRECTORY == "./web/dist"

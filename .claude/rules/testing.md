@@ -1,19 +1,29 @@
 ---
 paths:
   - "tests/**"
-  - "web/js/**/*.js"
+  - "src/**/*.ts"
   - ".pre-commit-config.yaml"
 ---
 
 # Testing Requirements
 
-## Syntax Validation
+## Type & Build Validation
 
-Run before every commit:
+Run before every commit (the source is TypeScript compiled to
+`web/dist/` via `bun build` — see ADR-0010):
 
 ```sh
-# JavaScript syntax check
-node --check web/js/sampler-info.js
+bun run typecheck   # tsc --noEmit
+bun run build       # emit web/dist/index.js (+ copy corpus)
+bunx biome check .  # lint + format
+bun run knip        # dead-code / unused-dep
+```
+
+## Legacy syntax check (output artifact)
+
+```sh
+# Built-output syntax check (run after `bun run build`)
+node --check web/dist/index.js
 
 # JSON corpus validation
 python -c "import json; [json.load(open(f)) for f in ['web/data/samplers.json','web/data/schedulers.json']]"
@@ -36,8 +46,8 @@ Keyboard navigation: Up, Down, PgUp, PgDn, Enter, Esc; type anywhere to filter; 
 
 ```sh
 curl -s -o /dev/null -w "%{http_code}\n" \
-  http://127.0.0.1:8188/extensions/comfyui-sampler-info/js/sampler-info.js
-# Expected: 200
+  http://127.0.0.1:8188/extensions/comfyui-sampler-info/index.js
+# Expected: 200 (built output served from web/dist/ via WEB_DIRECTORY)
 ```
 
 ## Tooltip Path (Option A)

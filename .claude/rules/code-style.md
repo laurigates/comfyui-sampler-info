@@ -1,24 +1,35 @@
 ---
 paths:
-  - "web/js/**/*.js"
-  - "web/**/*.css"
+  - "src/**/*.ts"
 ---
 
-# JavaScript Code Style
+# Code Style
 
-Patterns extracted from the single-file JS implementation in `web/js/sampler-info.js`.
+> **Note (2026-06-06):** ADR-0010 moved the extension from vanilla JS to
+> TypeScript. The naming conventions, section-divider, guard-flag, and
+> optional-chaining patterns below still apply — but the source is now
+> `src/index.ts` (compiled to `web/dist/index.js` via `bun build`), not a
+> hand-served single JS file. The "no bundler / no transpilation /
+> relative `../../../scripts/app.js` import" parts are superseded: the
+> runtime import is the absolute `/scripts/app.js` form, kept unbundled by
+> `--external '/scripts/*'`.
+
+Patterns extracted from the implementation in `src/index.ts`.
 
 
 ## Source
 
-- **Commit**: 60a3d1c (2026-05-21)
+- **Commit**: 60a3d1c (2026-05-21); migrated to TS per ADR-0010 (2026-06-06)
 - **Type**: feat
-- **Confidence**: Medium (explicit in code structure; limited commit history — 3 commits total)
+- **Confidence**: Medium (explicit in code structure; limited commit history)
 
 
 ## Rule
 
-All JavaScript logic lives in a single file (`web/js/sampler-info.js`). No bundler, no transpilation, no `node_modules`. The file uses native ES modules (`import { app } from "../../../scripts/app.js"`).
+All extension logic lives in a single module (`src/index.ts`), compiled to
+one browser-ESM file (`web/dist/index.js`). The runtime ComfyUI import uses
+the absolute served-path form (`import { app } from "/scripts/app.js"`),
+kept unbundled at build time.
 
 
 ## Naming Conventions

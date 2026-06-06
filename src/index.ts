@@ -1,4 +1,25 @@
-import { app } from "../../../scripts/app.js";
+import { app } from "/scripts/app.js";
+
+// The package's `ComfyApp` type is the only widget/graph type it exports at
+// the module root — `LGraphNode`, `LGraphCanvas`, and the widget interfaces
+// are declared internally but not re-exported, so they cannot be imported.
+// We model the small surface this pack touches with local interfaces instead
+// (the code-split plan's "local interface extension — narrower blast radius"
+// approach). `ComfyApp` types the imported `app` via the shim in
+// `comfyui-shims.d.ts`.
+
+// Minimal structural types for the LiteGraph objects this pack reaches into.
+// Only the members actually used here are modelled; everything else is left
+// off deliberately so the seam stays narrow. Named `SamplerNode` (not
+// `LGraphNode`) to avoid colliding with the package's own un-exported
+// `LGraphNode` at the `registerExtension` lifecycle-hook seam — the hooks
+// receive the package node, which we cast to this structural shape.
+interface SamplerNode {
+  widgets?: PatchedWidget[];
+  setDirtyCanvas?: (fg: boolean, bg: boolean) => void;
+}
+
+type SamplerCanvas = unknown;
 
 // Two features:
 //
@@ -19,15 +40,82 @@ const SCHEDULER_WIDGET_NAMES = new Set(["scheduler"]);
 const STYLE_ID = "sampler-info-style";
 const DIALOG_ID = "sampler-info-dialog";
 
-let SAMPLERS = { exact: {}, prefix: [] };
-let SCHEDULERS = { exact: {}, prefix: [] };
+// ============================================================
+// Types
+// ============================================================
+
+interface SamplerInfo {
+  year?: number | null;
+  family?: string;
+  order?: number | string;
+  type?: string;
+  summary?: string;
+  good_for?: string;
+  pairs_with?: string[];
+  supersedes_by?: string;
+  notes?: string;
+  match?: string;
+  re?: RegExp;
+}
+
+interface RawCorpus {
+  exact?: Record<string, SamplerInfo>;
+  prefix?: SamplerInfo[];
+}
+
+interface Corpus {
+  exact: Record<string, SamplerInfo>;
+  // Compiled prefix entries always carry a non-null `re`.
+  prefix: (SamplerInfo & { re: RegExp })[];
+}
+
+// A combo widget plus the custom props this pack hangs off it. The package's
+// widget types are not exported, so we model the members used here directly.
+// `onPointerDown` and the private guard flags are not part of the public widget
+// surface — they are this pack's intercept seam.
+interface WidgetOptions {
+  tooltip?: string;
+  values?: string[] | ((widget: PatchedWidget, node: unknown) => unknown);
+}
+
+interface PatchedWidget {
+  name: string;
+  value: unknown;
+  tooltip?: string;
+  options?: WidgetOptions;
+  callback?: (value: unknown, ...rest: unknown[]) => unknown;
+  onPointerDown?: (
+    pointer: unknown,
+    node: SamplerNode,
+    canvas: SamplerCanvas,
+  ) => boolean | undefined;
+  _samplerInfoPatched?: boolean;
+  _samplerInfoPointerPatched?: boolean;
+  _samplerInfoOriginalTooltip?: string;
+}
+
+interface PickerState {
+  widget: PatchedWidget;
+  node: SamplerNode | null;
+  values: string[];
+  corpus: Corpus;
+  currentValue: string;
+  listEl: HTMLElement;
+  countEl: HTMLElement;
+  searchEl: HTMLInputElement;
+  visibleRows: HTMLElement[];
+  activeIndex: number;
+}
+
+let SAMPLERS: Corpus = { exact: {}, prefix: [] };
+let SCHEDULERS: Corpus = { exact: {}, prefix: [] };
 let CORPUS_LOADED = false;
 
 // ============================================================
 // Corpus loading
 // ============================================================
 
-async function loadCorpus() {
+async function loadCorpus(): Promise<void> {
   try {
     const [s, sc] = await Promise.all([
       fetch(`${DATA_BASE}/samplers.json`, { cache: "no-cache" }).then((r) => r.json()),
@@ -41,25 +129,26 @@ async function loadCorpus() {
   }
 }
 
-export function compileCorpus(raw) {
+export function compileCorpus(raw: RawCorpus | null | undefined): Corpus {
   const prefix = (raw?.prefix || [])
     .map((p) => ({ ...p, re: safeRegex(p.match) }))
-    .filter((p) => p.re);
+    .filter((p): p is SamplerInfo & { re: RegExp } => p.re !== null);
   return { exact: raw?.exact || {}, prefix };
 }
 
-export function safeRegex(pattern) {
+export function safeRegex(pattern: string | undefined): RegExp | null {
   try {
-    return new RegExp(pattern);
+    return new RegExp(pattern as string);
   } catch (e) {
     console.warn(`[${EXT_NAME}] bad regex in corpus: ${pattern}`, e);
     return null;
   }
 }
 
-export function lookup(corpus, token) {
+export function lookup(corpus: Corpus, token: unknown): SamplerInfo | null {
   if (!token || typeof token !== "string") return null;
-  if (corpus.exact[token]) return corpus.exact[token];
+  const exact = corpus.exact[token];
+  if (exact) return exact;
   for (const p of corpus.prefix) {
     if (p.re.test(token)) return p;
   }
@@ -70,7 +159,7 @@ export function lookup(corpus, token) {
 // Option A: tooltip rewrite
 // ============================================================
 
-function formatSamplerTooltip(token, info) {
+function formatSamplerTooltip(token: string, info: SamplerInfo): string {
   const headerBits = [token];
   if (info.order !== undefined && info.order !== null) headerBits.push(`order ${info.order}`);
   if (info.type) headerBits.push(info.type);
@@ -87,7 +176,7 @@ function formatSamplerTooltip(token, info) {
   return lines.join("\n");
 }
 
-function formatSchedulerTooltip(token, info) {
+function formatSchedulerTooltip(token: string, info: SamplerInfo): string {
   const headerBits = [token];
   if (info.year) headerBits.push(`${info.year}`);
   const lines = [headerBits.join(" · "), ""];
@@ -97,20 +186,20 @@ function formatSchedulerTooltip(token, info) {
   return lines.join("\n");
 }
 
-function isSchedulerWidget(widget) {
+function isSchedulerWidget(widget: PatchedWidget): boolean {
   return SCHEDULER_WIDGET_NAMES.has(widget.name);
 }
 
-function widgetCorpus(widget) {
+function widgetCorpus(widget: PatchedWidget): Corpus {
   return isSchedulerWidget(widget) ? SCHEDULERS : SAMPLERS;
 }
 
-function refreshWidgetTooltip(widget) {
+function refreshWidgetTooltip(widget: PatchedWidget): void {
   if (!CORPUS_LOADED) return;
   const fmt = isSchedulerWidget(widget) ? formatSchedulerTooltip : formatSamplerTooltip;
   const info = lookup(widgetCorpus(widget), widget.value);
   if (!info) return;
-  const tip = fmt(widget.value, info);
+  const tip = fmt(String(widget.value), info);
   widget.options = widget.options || {};
   widget._samplerInfoOriginalTooltip ??= widget.options.tooltip;
   widget.options.tooltip = tip;
@@ -329,7 +418,7 @@ const CSS = `
 }
 `;
 
-function ensureStyle() {
+function ensureStyle(): void {
   if (document.getElementById(STYLE_ID)) return;
   const style = document.createElement("style");
   style.id = STYLE_ID;
@@ -337,29 +426,30 @@ function ensureStyle() {
   document.head.appendChild(style);
 }
 
-function dismissPicker() {
+function dismissPicker(): void {
   document.getElementById(DIALOG_ID)?.remove();
   document.getElementById(`${DIALOG_ID}-backdrop`)?.remove();
   document.removeEventListener("keydown", onPickerKeydown, true);
   PICKER_STATE = null;
 }
 
-let PICKER_STATE = null;
+let PICKER_STATE: PickerState | null = null;
 
-function getWidgetValues(widget) {
-  let values = widget.options?.values;
-  if (typeof values === "function") {
+function getWidgetValues(widget: PatchedWidget): string[] {
+  const raw = widget.options?.values;
+  let values: unknown = raw;
+  if (typeof raw === "function") {
     try {
-      values = values(widget, app.canvas?.current_node);
+      values = raw(widget, app.canvas?.current_node);
     } catch (e) {
       console.warn(`[${EXT_NAME}] values function threw`, e);
       values = [];
     }
   }
-  return Array.isArray(values) ? values : [];
+  return Array.isArray(values) ? (values as string[]) : [];
 }
 
-function buildNameEl(value, matches) {
+function buildNameEl(value: string, matches: number[] | undefined): HTMLSpanElement {
   const el = document.createElement("span");
   el.className = "si-name";
   if (!matches?.length) {
@@ -371,16 +461,21 @@ function buildNameEl(value, matches) {
     if (matchSet.has(i)) {
       const m = document.createElement("span");
       m.className = "si-match";
-      m.textContent = value[i];
+      m.textContent = value[i] as string;
       el.appendChild(m);
     } else {
-      el.appendChild(document.createTextNode(value[i]));
+      el.appendChild(document.createTextNode(value[i] as string));
     }
   }
   return el;
 }
 
-function buildRowEl(value, info, isCurrent, nameMatches) {
+function buildRowEl(
+  value: string,
+  info: SamplerInfo | null,
+  isCurrent: boolean,
+  nameMatches: number[],
+): HTMLDivElement {
   const row = document.createElement("div");
   row.className = `si-row${isCurrent ? " si-current" : ""}`;
   row.dataset.value = value;
@@ -405,7 +500,7 @@ function buildRowEl(value, info, isCurrent, nameMatches) {
     if (info.year) {
       const b = document.createElement("span");
       b.className = "si-badge si-badge-year";
-      b.textContent = info.year;
+      b.textContent = String(info.year);
       head.appendChild(b);
     }
     if (info.family) {
@@ -424,7 +519,7 @@ function buildRowEl(value, info, isCurrent, nameMatches) {
     row.appendChild(sum);
   }
 
-  const metaBits = [];
+  const metaBits: [string, string][] = [];
   if (info?.good_for) metaBits.push(["Good for", info.good_for]);
   if (info?.pairs_with?.length) metaBits.push(["Pairs with", info.pairs_with.join(", ")]);
   if (info?.supersedes_by) metaBits.push(["Largely superseded by", info.supersedes_by]);
@@ -465,11 +560,14 @@ function buildRowEl(value, info, isCurrent, nameMatches) {
 // token must match somewhere on the row (name or metadata). The name
 // match is weighted 10× metadata matches.
 
-export function fuzzyScore(query, target) {
+export function fuzzyScore(
+  query: string,
+  target: string,
+): { score: number; matches: number[] } | null {
   if (!query) return { score: 0, matches: [] };
   const q = query.toLowerCase();
   const t = target.toLowerCase();
-  const matches = [];
+  const matches: number[] = [];
   let qi = 0;
   let score = 0;
   let consecutive = 0;
@@ -484,10 +582,11 @@ export function fuzzyScore(query, target) {
     if (ti === 0) {
       charScore += 5;
     } else {
-      const prev = t[ti - 1];
+      const prev = t[ti - 1] as string;
+      const cur = target[ti] as string;
       if (prev === "_" || prev === "-" || prev === " " || prev === "." || prev === "/") {
         charScore += 4;
-      } else if (prev >= "a" && prev <= "z" && target[ti] >= "A" && target[ti] <= "Z") {
+      } else if (prev >= "a" && prev <= "z" && cur >= "A" && cur <= "Z") {
         charScore += 3;
       }
     }
@@ -509,23 +608,27 @@ export function fuzzyScore(query, target) {
   return { score, matches };
 }
 
-export function fuzzyRank(value, info, query) {
+export function fuzzyRank(
+  value: string,
+  info: SamplerInfo | null,
+  query: string,
+): { score: number; nameMatches: number[] } | null {
   if (!query) return { score: 0, nameMatches: [] };
   const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) return { score: 0, nameMatches: [] };
 
   let totalScore = 0;
-  const nameMatchSet = new Set();
+  const nameMatchSet = new Set<number>();
 
-  const metaFields = info
-    ? [
+  const metaFields: string[] = info
+    ? ([
         info.family,
         info.summary,
         info.good_for,
         info.type,
         info.year != null ? String(info.year) : null,
         info.supersedes_by,
-      ].filter(Boolean)
+      ].filter(Boolean) as string[])
     : [];
 
   for (const token of tokens) {
@@ -549,14 +652,19 @@ export function fuzzyRank(value, info, query) {
   return { score: totalScore, nameMatches: [...nameMatchSet].sort((a, b) => a - b) };
 }
 
-function renderRows() {
+function renderRows(): void {
   if (!PICKER_STATE) return;
   const { listEl, countEl, values, corpus, currentValue, searchEl } = PICKER_STATE;
   const query = searchEl.value.trim();
   const hasFilter = !!query;
 
   // Rank + filter.
-  const ranked = [];
+  const ranked: {
+    value: string;
+    info: SamplerInfo | null;
+    score: number;
+    nameMatches: number[];
+  }[] = [];
   for (const value of values) {
     const info = lookup(corpus, value);
     if (!hasFilter) {
@@ -603,25 +711,25 @@ function renderRows() {
     listEl.appendChild(empty);
     PICKER_STATE.activeIndex = -1;
   } else if (!activeAssigned) {
-    PICKER_STATE.visibleRows[0].classList.add("si-active");
+    (PICKER_STATE.visibleRows[0] as HTMLElement).classList.add("si-active");
     PICKER_STATE.activeIndex = 0;
   }
   countEl.textContent = `${shown} / ${values.length}`;
 }
 
-function setActiveRow(rowEl) {
+function setActiveRow(rowEl: HTMLElement): void {
   if (!PICKER_STATE) return;
   PICKER_STATE.visibleRows.forEach((r, i) => {
     if (r === rowEl) {
       r.classList.add("si-active");
-      PICKER_STATE.activeIndex = i;
+      if (PICKER_STATE) PICKER_STATE.activeIndex = i;
     } else {
       r.classList.remove("si-active");
     }
   });
 }
 
-function moveActive(delta) {
+function moveActive(delta: number): void {
   if (!PICKER_STATE) return;
   const rows = PICKER_STATE.visibleRows;
   if (!rows.length) return;
@@ -632,10 +740,10 @@ function moveActive(delta) {
     r.classList.toggle("si-active", j === i);
   });
   PICKER_STATE.activeIndex = i;
-  rows[i].scrollIntoView({ block: "nearest" });
+  (rows[i] as HTMLElement).scrollIntoView({ block: "nearest" });
 }
 
-function selectAndClose(value) {
+function selectAndClose(value: string): void {
   if (!PICKER_STATE) return;
   const { widget, node } = PICKER_STATE;
   dismissPicker();
@@ -654,7 +762,7 @@ function selectAndClose(value) {
   app.graph?.setDirtyCanvas?.(true, true);
 }
 
-function onPickerKeydown(e) {
+function onPickerKeydown(e: KeyboardEvent): void {
   if (!PICKER_STATE) return;
 
   // Navigation keys: always handled, regardless of where focus lives.
@@ -684,7 +792,7 @@ function onPickerKeydown(e) {
       e.preventDefault();
       const i = PICKER_STATE.activeIndex;
       const row = PICKER_STATE.visibleRows[i];
-      if (row) selectAndClose(row.dataset.value);
+      if (row?.dataset.value !== undefined) selectAndClose(row.dataset.value);
       return;
     }
   }
@@ -716,7 +824,7 @@ function onPickerKeydown(e) {
   }
 }
 
-function openPicker(widget, node) {
+function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
   ensureStyle();
   dismissPicker();
   const values = getWidgetValues(widget);
@@ -737,7 +845,7 @@ function openPicker(widget, node) {
   dialog.id = DIALOG_ID;
   dialog.addEventListener("click", (e) => {
     e.stopPropagation();
-    const t = e.target;
+    const t = e.target as HTMLElement;
     if (t.tagName !== "INPUT" && t.tagName !== "BUTTON" && !t.closest?.(".si-row")) {
       PICKER_STATE?.searchEl?.focus();
     }
@@ -804,7 +912,7 @@ function openPicker(widget, node) {
     node,
     values,
     corpus,
-    currentValue: widget.value,
+    currentValue: String(widget.value),
     listEl,
     countEl,
     searchEl,
@@ -829,9 +937,10 @@ function openPicker(widget, node) {
 // Wiring
 // ============================================================
 
-function enhanceNode(node) {
+function enhanceNode(node: SamplerNode): void {
   if (!node?.widgets) return;
-  for (const w of node.widgets) {
+  for (const widget of node.widgets) {
+    const w = widget as PatchedWidget;
     const matches = SAMPLER_WIDGET_NAMES.has(w.name) || SCHEDULER_WIDGET_NAMES.has(w.name);
     if (!matches) continue;
 
@@ -840,15 +949,17 @@ function enhanceNode(node) {
       w._samplerInfoPatched = true;
       refreshWidgetTooltip(w);
       const origCb = w.callback;
-      w.callback = function (value, ...rest) {
-        const r = origCb ? origCb.call(this, value, ...rest) : undefined;
+      w.callback = function (this: PatchedWidget, value: unknown, ...rest: unknown[]) {
+        const r = origCb
+          ? (origCb as (...a: unknown[]) => unknown).call(this, value, ...rest)
+          : undefined;
         try {
           refreshWidgetTooltip(w);
         } catch (e) {
           console.warn(`[${EXT_NAME}] tooltip refresh failed`, e);
         }
         return r;
-      };
+      } as typeof w.callback;
     } else {
       refreshWidgetTooltip(w);
     }
@@ -859,7 +970,12 @@ function enhanceNode(node) {
     if (!w._samplerInfoPointerPatched) {
       w._samplerInfoPointerPatched = true;
       const origDown = w.onPointerDown;
-      w.onPointerDown = function (pointer, ownerNode, canvas) {
+      w.onPointerDown = function (
+        this: PatchedWidget,
+        pointer: unknown,
+        ownerNode: SamplerNode,
+        canvas: SamplerCanvas,
+      ): boolean | undefined {
         if (typeof origDown === "function") {
           const consumed = origDown.call(this, pointer, ownerNode, canvas);
           if (consumed) return consumed;
@@ -871,12 +987,17 @@ function enhanceNode(node) {
   }
 }
 
-function refreshAllNodes() {
+function refreshAllNodes(): void {
   const graph = app?.graph;
-  if (!graph?._nodes) return;
-  for (const node of graph._nodes) enhanceNode(node);
+  const nodes = (graph as { _nodes?: unknown[] } | undefined)?._nodes;
+  if (!nodes) return;
+  for (const node of nodes) enhanceNode(node as SamplerNode);
 }
 
+// The lifecycle-hook node params are the package's own `LGraphNode`; cast each
+// to the structural `SamplerNode` this pack operates on (only `.widgets` and
+// `.setDirtyCanvas` are touched). Params are left un-annotated so they infer
+// from `ComfyExtension` and the registration type-checks against the package.
 app.registerExtension({
   name: "comfy.sampler-info",
   async setup() {
@@ -884,9 +1005,9 @@ app.registerExtension({
     refreshAllNodes();
   },
   async nodeCreated(node) {
-    enhanceNode(node);
+    enhanceNode(node as unknown as SamplerNode);
   },
   async loadedGraphNode(node) {
-    enhanceNode(node);
+    enhanceNode(node as unknown as SamplerNode);
   },
 });
