@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.4...comfyui-sampler-info-v0.1.5) (2026-06-08)
+
+
+### Bug Fixes
+
+* ship web/dist in registry tarball (pin publish-node-action skip_checkout) ([#40](https://github.com/laurigates/comfyui-sampler-info/issues/40)) ([3e092fa](https://github.com/laurigates/comfyui-sampler-info/commit/3e092fab8f7a269cb868f6cf46c4ab2c6c25093e))
+
 ## [0.1.4](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.3...comfyui-sampler-info-v0.1.4) (2026-06-08)
 
 
