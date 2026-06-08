@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.4](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.3...comfyui-sampler-info-v0.1.4) (2026-06-08)
+
+
+### Bug Fixes
+
+* add Comfy Registry icon/banner and publish on release event ([#37](https://github.com/laurigates/comfyui-sampler-info/issues/37)) ([c73a443](https://github.com/laurigates/comfyui-sampler-info/commit/c73a443e5039ca6c0d67a3a4c9f68c269845eab7))
+
 ## [0.1.3](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.2...comfyui-sampler-info-v0.1.3) (2026-06-06)
 
 
