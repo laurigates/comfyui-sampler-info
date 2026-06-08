@@ -24,8 +24,11 @@ jobs:
           bun run build
 
       - name: Publish Custom Node
-        uses: Comfy-Org/publish-node-action@v1
+        uses: Comfy-Org/publish-node-action@d2366e7abb6ab16f3bb03e3520ae25c8cf749bc9 # main: skip_checkout support
         with:
           # Personal access token issued at https://registry.comfy.org/
           # Stored as a repo secret named REGISTRY_ACCESS_TOKEN.
           personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
+          # Skip the action's internal checkout, which would wipe the
+          # git-ignored web/dist built above. Requires the pinned main ref.
+          skip_checkout: 'true'
