@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.5...comfyui-sampler-info-v0.1.6) (2026-06-09)
+
+
+### Bug Fixes
+
+* **registry:** ship runtime-only files in the Comfy Registry tarball ([#43](https://github.com/laurigates/comfyui-sampler-info/issues/43)) ([876d408](https://github.com/laurigates/comfyui-sampler-info/commit/876d4085902d749e59a0f780206bb1de50d0cef5))
+
 ## [0.1.5](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.4...comfyui-sampler-info-v0.1.5) (2026-06-08)
 
 
