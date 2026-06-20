@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.7](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.6...comfyui-sampler-info-v0.1.7) (2026-06-20)
+
+
+### Bug Fixes
+
+* pin comfyui-frontend-package to 3-part version (&gt;=1.40.0) ([#48](https://github.com/laurigates/comfyui-sampler-info/issues/48)) ([1c864df](https://github.com/laurigates/comfyui-sampler-info/commit/1c864df2b351cd256664e8259a9ebd9dbb4c8773))
+
+
+### Miscellaneous
+
+* **deps:** remove Dependabot config, consolidate on Renovate ([#47](https://github.com/laurigates/comfyui-sampler-info/issues/47)) ([d706079](https://github.com/laurigates/comfyui-sampler-info/commit/d706079a7994f75a824e4cfc3b4e12d4c0f6541b))
+
 ## [0.1.6](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.5...comfyui-sampler-info-v0.1.6) (2026-06-09)
 
 
