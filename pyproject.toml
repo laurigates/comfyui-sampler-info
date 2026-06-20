@@ -18,7 +18,7 @@ classifiers = [
 # modern Vue frontend's `widget.onPointerDown` hook, present since the
 # 1.x line of comfyui-frontend-package.
 dependencies = [
-    "comfyui-frontend-package>=1.40",
+    "comfyui-frontend-package>=1.40.0",
 ]
 
 [project.urls]
