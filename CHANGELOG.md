@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.8](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.7...comfyui-sampler-info-v0.1.8) (2026-06-26)
+
+
+### Bug Fixes
+
+* **dist:** commit web/dist so git-based updates carry the built frontend ([#54](https://github.com/laurigates/comfyui-sampler-info/issues/54)) ([7872cfd](https://github.com/laurigates/comfyui-sampler-info/commit/7872cfd4bc814e15ffb92dd3d67f4b429df80ca2))
+
 ## [0.1.7](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.6...comfyui-sampler-info-v0.1.7) (2026-06-20)
 
 
