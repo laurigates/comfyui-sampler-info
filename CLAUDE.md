@@ -145,12 +145,25 @@ Both JSON files share this schema:
       "good_for": "...",
       "pairs_with": ["..."]
     }
-  ]
+  ],
+  "alias": {
+    "res_2m": "res_multistep"  // token -> canonical exact token it reuses
+  }
 }
 ```
 
-Lookup order: exact wins over prefix. Within prefix, first-match wins
-(order matters — put more-specific patterns earlier).
+Lookup order: **exact → alias → prefix → null**. Exact wins over an alias;
+an alias (when its canonical target exists) wins over prefix. Within prefix,
+first-match wins (order matters — put more-specific patterns earlier).
+
+`alias` keeps the corpus DRY: when a wrapper exposes a sampler that is the
+*same algorithm* as one we already describe but under a different name (e.g.
+RES4LYF's `res_2m` is core `res_multistep`, `heun_2s` is core `heun`), point
+the alias at the canonical token instead of duplicating the description. The
+lookup reuses the canonical entry and appends an "Alias of `…`" note; the
+canonical entry itself is never mutated. Only map genuine equivalences —
+families with no exact core counterpart (e.g. `res_3m`, the Lawson/ETD-RK
+tokens) stay on their `prefix` family description.
 
 Every field is optional. The renderer skips missing fields gracefully.
 

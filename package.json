@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Rich metadata + fuzzy-search picker dialog for ComfyUI's sampler_name / sampler / scheduler combo widgets. TypeScript source in src/, built to web/dist/ via bun build. See ADR-0010.",
   "scripts": {
-    "build": "bun build ./src/index.ts --target browser --format esm --outdir web/dist --external '/scripts/*' && cp -R web/data web/dist/data",
+    "build": "bun build ./src/index.ts --target browser --format esm --outdir web/dist --external '/scripts/*' && rm -rf web/dist/data && cp -R web/data web/dist/data",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",

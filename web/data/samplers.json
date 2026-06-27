@@ -1,8 +1,8 @@
 {
   "_meta": {
     "version": 1,
-    "schema": "exact: token -> {year, family, order, type, summary, good_for, pairs_with, notes, supersedes_by}; prefix: ordered list of {match (regex), family, summary, good_for, pairs_with}. Exact wins over prefix. Unknown year is null.",
-    "sources": "Core sampler dates from ComfyUI git history + cited papers. RES4LYF families described at the family level — too many tokens to enumerate 1:1. Contributions welcome via PR."
+    "schema": "exact: token -> {year, family, order, type, summary, good_for, pairs_with, notes, supersedes_by}; prefix: ordered list of {match (regex), family, summary, good_for, pairs_with}; alias: token -> canonical-token reusing that exact entry (same algorithm, different naming scheme). Lookup order: exact, then alias, then first matching prefix. Unknown year is null.",
+    "sources": "Core sampler dates from ComfyUI git history + cited papers. RES4LYF families described at the family level — too many tokens to enumerate 1:1; the handful that are identical to a core sampler under a different name are mapped via `alias`. Contributions welcome via PR."
   },
 
   "exact": {
@@ -497,6 +497,11 @@
     }
   },
 
+  "alias": {
+    "res_2m": "res_multistep",
+    "heun_2s": "heun"
+  },
+
   "prefix": [
     {
       "match": "^res_\\d+m$",
@@ -518,6 +523,13 @@
       "summary": "RES4LYF's exposed single-step DPM++ variants. Higher-order than core's dpmpp_2s_ancestral.",
       "good_for": "Specialized DPM++ exploration",
       "pairs_with": ["karras", "exponential"]
+    },
+    {
+      "match": "^dpmpp_\\d+m$",
+      "family": "DPM-Solver++ (multistep)",
+      "summary": "Deterministic multistep DPM-Solver++; the N in dpmpp_Nm is the order. dpmpp_2m has a dedicated entry — this covers the higher-order RES4LYF variants (e.g. dpmpp_3m) that reuse past evaluations like core dpmpp_2m.",
+      "good_for": "Higher-order DPM++ multistep at 25+ steps; the non-SDE sibling of dpmpp_3m_sde",
+      "pairs_with": ["karras", "exponential", "sgm_uniform"]
     },
     {
       "match": "^etdrk\\d",
@@ -562,16 +574,23 @@
       "pairs_with": ["normal", "simple"]
     },
     {
-      "match": "^(houwen-wray|kutta|ssprk\\d|rk\\d|bogacki-shampine|dormand-prince|tsi)_\\d+s$",
+      "match": "^(houwen-wray|kutta|ssprk\\d|rk\\d+|bogacki-shampine|dormand-prince|tsi)_\\d+s$",
       "family": "Classical Runge-Kutta",
-      "summary": "Classical Runge-Kutta family (rk4, rk5, Dormand-Prince, Bogacki-Shampine, etc). Mathematically pristine but not specialized for diffusion.",
+      "summary": "Classical Runge-Kutta family (rk4, rk5, rk38, Dormand-Prince, Bogacki-Shampine, etc). Mathematically pristine but not specialized for diffusion.",
       "good_for": "Reference / curiosity; expensive at high stage counts",
       "pairs_with": ["normal", "karras"]
     },
     {
-      "match": "^gauss-legendre_\\d+s",
+      "match": "^verner",
+      "family": "Classical Runge-Kutta (Verner, very high-order)",
+      "summary": "Verner's high-order explicit Runge-Kutta methods (e.g. verner_13s, verner_robust_16s). Many stages per step for very high formal order — accurate but among the most expensive samplers per step.",
+      "good_for": "Reference-quality curiosity; the 13–16 stage counts mean 13–16 model evaluations per step, so rarely worth it over dpmpp_2m for real renders",
+      "pairs_with": ["normal", "karras"]
+    },
+    {
+      "match": "^gauss-legendre",
       "family": "Implicit RK (Gauss-Legendre)",
-      "summary": "Implicit Runge-Kutta — Gauss-Legendre points. Highest order per stage, but each step requires an iterative solve.",
+      "summary": "Implicit Runge-Kutta — Gauss-Legendre points (including the diagonal `_diag_` variant). Highest order per stage, but each step requires an iterative solve.",
       "good_for": "Maximum accuracy; very slow",
       "pairs_with": ["karras", "exponential"]
     },

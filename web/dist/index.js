@@ -6,8 +6,8 @@ var SAMPLER_WIDGET_NAMES = new Set(["sampler_name", "sampler"]);
 var SCHEDULER_WIDGET_NAMES = new Set(["scheduler"]);
 var STYLE_ID = "sampler-info-style";
 var DIALOG_ID = "sampler-info-dialog";
-var SAMPLERS = { exact: {}, prefix: [] };
-var SCHEDULERS = { exact: {}, prefix: [] };
+var SAMPLERS = { exact: {}, prefix: [], alias: {} };
+var SCHEDULERS = { exact: {}, prefix: [], alias: {} };
 var CORPUS_LOADED = false;
 async function loadCorpus() {
   try {
@@ -24,7 +24,11 @@ async function loadCorpus() {
 }
 function compileCorpus(raw) {
   const prefix = (raw?.prefix || []).map((p) => ({ ...p, re: safeRegex(p.match) })).filter((p) => p.re !== null);
-  return { exact: raw?.exact || {}, prefix };
+  return { exact: raw?.exact || {}, prefix, alias: raw?.alias || {} };
+}
+function resolveAlias(canonical, target) {
+  const note = `Alias of \`${canonical}\` — same algorithm, different naming scheme.`;
+  return { ...target, notes: target.notes ? `${note} ${target.notes}` : note };
 }
 function safeRegex(pattern) {
   try {
@@ -40,6 +44,12 @@ function lookup(corpus, token) {
   const exact = corpus.exact[token];
   if (exact)
     return exact;
+  const canonical = corpus.alias[token];
+  if (canonical) {
+    const target = corpus.exact[canonical];
+    if (target)
+      return resolveAlias(canonical, target);
+  }
   for (const p of corpus.prefix) {
     if (p.re.test(token))
       return p;

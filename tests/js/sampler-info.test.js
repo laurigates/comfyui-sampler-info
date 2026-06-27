@@ -1,9 +1,15 @@
 // TRP-001 Gap 1 + Gap 2 test suite
 // Tests for fuzzy scorer (Gap 1) and corpus helpers (Gap 2)
 
+import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
 import { compileCorpus, fuzzyRank, fuzzyScore, lookup, safeRegex } from "../../src/index.ts";
+
+// The real shipped corpus, compiled — used by the RES4LYF coverage regression.
+const SAMPLERS_CORPUS = compileCorpus(
+  JSON.parse(readFileSync(new URL("../../web/data/samplers.json", import.meta.url), "utf8")),
+);
 
 // ============================================================
 // Gap 2: Corpus helpers
@@ -117,6 +123,82 @@ describe("lookup", () => {
     });
     expect(() => lookup(corpus, 42)).not.toThrow();
     expect(lookup(corpus, 42)).toBeNull();
+  });
+
+  test("alias resolves to the canonical exact entry", () => {
+    const corpus = compileCorpus({
+      exact: { res_multistep: { summary: "canonical entry", family: "RES" } },
+      alias: { res_2m: "res_multistep" },
+    });
+    const result = lookup(corpus, "res_2m");
+    expect(result).toBeDefined();
+    expect(result.summary).toBe("canonical entry");
+    expect(result.family).toBe("RES");
+    expect(result.notes).toContain("Alias of `res_multistep`");
+  });
+
+  test("alias is checked before prefix", () => {
+    const corpus = compileCorpus({
+      exact: { res_multistep: { summary: "canonical" } },
+      alias: { res_2m: "res_multistep" },
+      prefix: [{ match: "^res_\\d+m$", summary: "generic family" }],
+    });
+    expect(lookup(corpus, "res_2m").summary).toBe("canonical");
+  });
+
+  test("exact still wins over alias", () => {
+    const corpus = compileCorpus({
+      exact: { heun: { summary: "heun exact" }, heun_2s: { summary: "own entry" } },
+      alias: { heun_2s: "heun" },
+    });
+    expect(lookup(corpus, "heun_2s").summary).toBe("own entry");
+  });
+
+  test("alias pointing at a missing canonical falls through to prefix", () => {
+    const corpus = compileCorpus({
+      exact: {},
+      alias: { res_2m: "res_multistep" },
+      prefix: [{ match: "^res_\\d+m$", summary: "generic family" }],
+    });
+    expect(lookup(corpus, "res_2m").summary).toBe("generic family");
+  });
+
+  test("alias note is appended, preserving the canonical note", () => {
+    const corpus = compileCorpus({
+      exact: { res_multistep: { summary: "canonical", notes: "original note" } },
+      alias: { res_2m: "res_multistep" },
+    });
+    const result = lookup(corpus, "res_2m");
+    expect(result.notes).toContain("Alias of `res_multistep`");
+    expect(result.notes).toContain("original note");
+  });
+
+  test("aliasing does not mutate the canonical entry", () => {
+    const corpus = compileCorpus({
+      exact: { res_multistep: { summary: "canonical" } },
+      alias: { res_2m: "res_multistep" },
+    });
+    lookup(corpus, "res_2m");
+    expect(corpus.exact.res_multistep.notes).toBeUndefined();
+  });
+});
+
+// ============================================================
+// RES4LYF token coverage — every advertised rk_type resolves
+// ============================================================
+
+describe("RES4LYF token coverage (regression)", () => {
+  // Previously-uncovered tokens, each closed by a specific corpus change.
+  const previouslyUncovered = [
+    "rk38_4s", // rk\d -> rk\d+
+    "gauss-legendre_diag_8s", // ^gauss-legendre_\d+s -> ^gauss-legendre
+    "verner_13s", // new ^verner prefix
+    "verner_robust_16s", // new ^verner prefix (handles _robust_ infix)
+    "dpmpp_3m", // new ^dpmpp_\d+m$ prefix
+  ];
+
+  test.each(previouslyUncovered)("resolves %s", (token) => {
+    expect(lookup(SAMPLERS_CORPUS, token)).not.toBeNull();
   });
 });
 

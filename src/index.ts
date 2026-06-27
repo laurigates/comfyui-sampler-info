@@ -61,12 +61,17 @@ interface SamplerInfo {
 interface RawCorpus {
   exact?: Record<string, SamplerInfo>;
   prefix?: SamplerInfo[];
+  // Maps a token to the canonical token whose entry it reuses (DRY) —
+  // e.g. RES4LYF's `res_2m` -> core `res_multistep`. Same algorithm,
+  // different naming scheme.
+  alias?: Record<string, string>;
 }
 
 interface Corpus {
   exact: Record<string, SamplerInfo>;
   // Compiled prefix entries always carry a non-null `re`.
   prefix: (SamplerInfo & { re: RegExp })[];
+  alias: Record<string, string>;
 }
 
 // A combo widget plus the custom props this pack hangs off it. The package's
@@ -107,8 +112,8 @@ interface PickerState {
   activeIndex: number;
 }
 
-let SAMPLERS: Corpus = { exact: {}, prefix: [] };
-let SCHEDULERS: Corpus = { exact: {}, prefix: [] };
+let SAMPLERS: Corpus = { exact: {}, prefix: [], alias: {} };
+let SCHEDULERS: Corpus = { exact: {}, prefix: [], alias: {} };
 let CORPUS_LOADED = false;
 
 // ============================================================
@@ -133,7 +138,15 @@ export function compileCorpus(raw: RawCorpus | null | undefined): Corpus {
   const prefix = (raw?.prefix || [])
     .map((p) => ({ ...p, re: safeRegex(p.match) }))
     .filter((p): p is SamplerInfo & { re: RegExp } => p.re !== null);
-  return { exact: raw?.exact || {}, prefix };
+  return { exact: raw?.exact || {}, prefix, alias: raw?.alias || {} };
+}
+
+// Build the SamplerInfo returned for an alias hit: the canonical entry's
+// data, plus a note explaining the equivalence. The canonical entry is
+// never mutated — aliases are a read-time view over it.
+function resolveAlias(canonical: string, target: SamplerInfo): SamplerInfo {
+  const note = `Alias of \`${canonical}\` — same algorithm, different naming scheme.`;
+  return { ...target, notes: target.notes ? `${note} ${target.notes}` : note };
 }
 
 export function safeRegex(pattern: string | undefined): RegExp | null {
@@ -149,6 +162,14 @@ export function lookup(corpus: Corpus, token: unknown): SamplerInfo | null {
   if (!token || typeof token !== "string") return null;
   const exact = corpus.exact[token];
   if (exact) return exact;
+  // Alias resolution sits between exact and prefix: a wrapper-specific token
+  // (e.g. RES4LYF `res_2m`) reuses an existing canonical entry rather than
+  // duplicating its description.
+  const canonical = corpus.alias[token];
+  if (canonical) {
+    const target = corpus.exact[canonical];
+    if (target) return resolveAlias(canonical, target);
+  }
   for (const p of corpus.prefix) {
     if (p.re.test(token)) return p;
   }
