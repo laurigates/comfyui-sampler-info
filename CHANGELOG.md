@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.9](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.8...comfyui-sampler-info-v0.1.9) (2026-06-27)
+
+
+### Features
+
+* **corpus:** add RES4LYF sampler support via alias mechanism ([#57](https://github.com/laurigates/comfyui-sampler-info/issues/57)) ([b7b589d](https://github.com/laurigates/comfyui-sampler-info/commit/b7b589d1ea14243f86c08c0d58dd0b16c3bef3ad))
+
 ## [0.1.8](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.7...comfyui-sampler-info-v0.1.8) (2026-06-26)
 
 
