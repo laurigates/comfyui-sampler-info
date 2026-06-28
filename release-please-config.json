@@ -6,7 +6,14 @@
       "package-name": "comfyui-sampler-info",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": true
+      "bump-patch-for-minor-pre-major": true,
+      "extra-files": [
+        {
+          "type": "toml",
+          "path": "uv.lock",
+          "jsonpath": "$.package[?(@.name.value=='comfyui-sampler-info')].version"
+        }
+      ]
     }
   },
   "pull-request-title-pattern": "chore: release ${version}",
