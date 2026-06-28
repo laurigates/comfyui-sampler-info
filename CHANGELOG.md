@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.9...comfyui-sampler-info-v0.1.10) (2026-06-28)
+
+
+### Miscellaneous
+
+* sync uv.lock and auto-bump it via release-please ([#59](https://github.com/laurigates/comfyui-sampler-info/issues/59)) ([9126ece](https://github.com/laurigates/comfyui-sampler-info/commit/9126ece8d6b29f107995f816ddc91590de36e4d4))
+
 ## [0.1.9](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.8...comfyui-sampler-info-v0.1.9) (2026-06-27)
 
 
