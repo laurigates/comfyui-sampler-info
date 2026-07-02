@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.11](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.10...comfyui-sampler-info-v0.1.11) (2026-07-02)
+
+
+### Features
+
+* register a sampler/scheduler combo field provider with comfy-modal-kit ([#64](https://github.com/laurigates/comfyui-sampler-info/issues/64)) ([5b9f77c](https://github.com/laurigates/comfyui-sampler-info/commit/5b9f77c9b6f045e26fb67b68dbd5dbd964f80b98))
+
 ## [0.1.10](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.9...comfyui-sampler-info-v0.1.10) (2026-06-28)
 
 
