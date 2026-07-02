@@ -51,7 +51,7 @@ Two additive enhancements on combo widgets named `sampler_name` /
 | `__init__.py` | Loader stub. `WEB_DIRECTORY = "./web/dist"`, empty mappings. |
 | `src/index.ts` | The whole extension — TypeScript source (port of the former single-file JS). Compiled to `web/dist/index.js`. |
 | `src/comfyui-shims.d.ts` | Types the `/scripts/app.js` runtime import (see ADR-0010 type-seam notes). |
-| `web/dist/` | **Generated** — `bun build` output (`index.js` + copied `data/`). Git-ignored; force-shipped to the registry via `[tool.comfy] includes`. Do not edit by hand. |
+| `web/dist/` | **Generated** — `bun build` output (`index.js` + copied `data/`). Git-tracked (committed so the served artifact is present without a build step, e.g. the frontend↔registry sync gate); shipped to the registry via `[tool.comfy] includes`. Rebuild with `bun run build`; do not edit by hand. |
 | `web/data/samplers.json` | Sampler corpus — exact tokens + prefix regex families. Copied into `web/dist/data/` at build. |
 | `web/data/schedulers.json` | Scheduler corpus — same schema. |
 | `tsconfig.json` | TypeScript config — strict, `tsc --noEmit` type gate. |
@@ -200,9 +200,10 @@ bun run typecheck            # tsc --noEmit type gate
 just build                   # same as `bun run build`
 ```
 
-The served file is `web/dist/index.js` — `web/dist/` is git-ignored and
-generated. Build before testing live behavior or running the screenshot
-pipeline.
+The served file is `web/dist/index.js` — `web/dist/` is generated but
+git-tracked (the built artifact is committed). Rebuild it after editing
+`src/index.ts` and commit the result before testing live behavior or running
+the screenshot pipeline.
 
 ### Lint & format
 
