@@ -11,6 +11,27 @@ modal you can actually navigate — *and* tells you what each sampler is for.
 ![picker dialog](docs/picker.png)
 ![hover tooltip](docs/tooltip.png)
 
+## Part of the comfy-modal-kit family
+
+This pack builds on [`@laurigates/comfy-modal-kit`](https://github.com/laurigates/comfy-modal-kit)
+— the shared modal / fuzzy-match / cross-pack field-provider runtime for the
+mobile-first ComfyUI usability packs. It registers as a **field provider**: the
+corpus-annotated fuzzy list surfaces inline inside the shared registry's
+consumers (below), not only on canvas tap. Everything is additive and opt-in —
+install as many or as few of these as you like.
+
+| Pack | Role |
+|------|------|
+| **comfyui-sampler-info** (this pack) | Provider — the sampler/scheduler corpus fuzzy list |
+| [comfyui-prompt-editor](https://github.com/laurigates/comfyui-prompt-editor) | Consumer — the all-fields node editor that mounts this pack's inline control |
+| [comfyui-model-gallery](https://github.com/laurigates/comfyui-model-gallery) | Provider — model/checkpoint gallery for `ckpt_name`-style widgets |
+| [comfyui-touch-numeric](https://github.com/laurigates/comfyui-touch-numeric) | Provider — seed / numeric keypad |
+| [comfyui-touch-tooltips](https://github.com/laurigates/comfyui-touch-tooltips) | Companion — surfaces this pack's tooltip channel on long-press |
+| [comfyui-touch-connect](https://github.com/laurigates/comfyui-touch-connect) / [comfyui-touch-resize](https://github.com/laurigates/comfyui-touch-resize) | Gesture packs sharing the kit's pointer coordinator |
+
+See [ADR-0011](docs/blueprint/adrs/0011-adopt-comfy-modal-kit-field-provider.md)
+for the integration decision and the kit's ADR-0001 for the registry design.
+
 ## What it does
 
 Two additive enhancements:

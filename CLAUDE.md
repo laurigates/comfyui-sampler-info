@@ -24,6 +24,7 @@ authored in TypeScript (`src/index.ts`) and compiled to browser ESM via
 | [ADR-0008](docs/blueprint/adrs/0008-widget-name-detection.md) | Widget Detection by Name | api-design |
 | [ADR-0009](docs/blueprint/adrs/0009-adopt-vitest.md) | Vitest as Dev-Only Test Harness | testing |
 | [ADR-0010](docs/blueprint/adrs/0010-adopt-typescript-bun-build.md) | Adopt TypeScript + bun build (supersedes ADR-0001, ADR-0003) | build-tooling |
+| [ADR-0011](docs/blueprint/adrs/0011-adopt-comfy-modal-kit-field-provider.md) | Adopt comfy-modal-kit field-provider registry + click coordination | api-design |
 
 **Test Coverage**: [`docs/trps/regression-gaps-initial-scaffold.md`](docs/trps/regression-gaps-initial-scaffold.md) tracks coverage gaps from initial release (v0.1.0 at 100% feature completion).
 

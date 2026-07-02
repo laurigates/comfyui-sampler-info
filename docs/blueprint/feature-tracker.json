@@ -7,8 +7,8 @@
   "current_phase": "v0.1.x-corpus-patches",
   "prd_status": "Active",
   "statistics": {
-    "total_features": 14,
-    "complete": 14,
+    "total_features": 15,
+    "complete": 15,
     "partial": 0,
     "in_progress": 0,
     "not_started": 0,
@@ -62,11 +62,13 @@
     {
       "id": "v0.2.x-picker-enhancements",
       "name": "v0.2.x — Picker Enhancements",
-      "description": "UX improvements (theme, multi-column layout, favorites, etc.)",
-      "status": "not_started",
+      "description": "UX improvements (theme, multi-column layout, favorites, etc.) and cross-pack integration via comfy-modal-kit",
+      "status": "in_progress",
       "priority": "P2",
       "target_date": null,
-      "features": []
+      "features": [
+        "FR-015"
+      ]
     },
     {
       "id": "v1.0.0-schema-stability",
@@ -388,6 +390,29 @@
         "commits": ["60a3d1c"]
       },
       "implementing_wos": ["WO-005"]
+    },
+    {
+      "id": "FR-015",
+      "title": "Field-provider registration with comfy-modal-kit",
+      "description": "Register the corpus-annotated fuzzy list as a cross-pack field provider (@laurigates/comfy-modal-kit v0.4.0) matching `sampler_name` / `sampler` / `scheduler` combo widgets, so consumers of the shared registry (comfyui-prompt-editor) mount it inline in place of the built-in <select>. Adopt the kit's `patchWidgetPointer` click coordinator + `isModalActive` guard for the on-canvas intercept, and reuse the kit's `fuzzyRank` + `highlightMatches` in place of the local copies. Additive/opt-in — falls back to the native control when no provider resolves.",
+      "priority": "P2",
+      "status": "complete",
+      "source": "PRD-001",
+      "related_to": ["ADR-0011", "ADR-0002", "ADR-0008"],
+      "phase": "v0.2.x-picker-enhancements",
+      "acceptance_criteria": [
+        "registerFieldProvider matches sampler_name/sampler/scheduler combo widgets",
+        "FieldControl renders the inline corpus-annotated fuzzy list (el/getValue/hasChanged/focus/destroy)",
+        "patchWidgetPointer + isModalActive adopted for the on-canvas click intercept",
+        "Kit fuzzyRank + highlightMatches reused; local fuzzy/highlight copies removed",
+        "Additive fallback preserved — bare name when no corpus match; native control when no provider"
+      ],
+      "implementation": {
+        "files": ["src/index.ts"],
+        "tests": ["tests/js/sampler-info.test.js"],
+        "commits": []
+      },
+      "implementing_wos": ["WO-014"]
     }
   ],
   "tasks": {
@@ -416,6 +441,14 @@
         "source": "PRD-001",
         "added": "2026-05-21",
         "priority": "P1"
+      },
+      {
+        "id": "WO-014",
+        "description": "Register a comfy-modal-kit field provider + adopt patchWidgetPointer; reuse the kit's fuzzyRank + highlightMatches",
+        "related_features": ["FR-015"],
+        "source": "PRD-001",
+        "added": "2026-07-02",
+        "priority": "P2"
       }
     ],
     "completed": [

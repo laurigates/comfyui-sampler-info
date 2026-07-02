@@ -208,8 +208,10 @@ No Python runtime dependencies beyond a standard ComfyUI installation.
 | System | Integration | Notes |
 |--------|------------|-------|
 | LiteGraph / ComfyUI frontend | `widget.options.tooltip` (write) | Stable convention |
-| ComfyUI frontend | `widget.onPointerDown` (intercept) | Version-sensitive; graceful fallback |
+| ComfyUI frontend | `widget.onPointerDown` (intercept) | Version-sensitive; via `@laurigates/comfy-modal-kit` `patchWidgetPointer` + `isModalActive` (ADR-0011); graceful fallback |
 | ComfyUI frontend | `app.registerExtension` API | Standard extension entry point |
+| `@laurigates/comfy-modal-kit` field-provider registry | `registerFieldProvider` — mounts the corpus fuzzy list inline in registry consumers (comfyui-prompt-editor) via a `FieldControl` (ADR-0011) | Additive/opt-in; falls back to the native `<select>` when no provider resolves |
+| `@laurigates/comfy-modal-kit` fuzzy primitives | Reuses the kit's `fuzzyRank` + `highlightMatches` (single-sourced, was vendored) | Inlined at `bun build` — no runtime `node_modules` |
 | Comfy Registry | `pyproject.toml [tool.comfy]` + GitHub Actions `publish.yml` | Auto-publish on version bump |
 | ComfyUI Manager | `custom-node-list.json` PR | Secondary install channel |
 | comfyui-touch-tooltips | Reads `widget.options.tooltip` written by this pack | Optional companion |

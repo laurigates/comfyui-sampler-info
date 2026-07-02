@@ -1,10 +1,14 @@
-// TRP-001 Gap 1 + Gap 2 test suite
-// Tests for fuzzy scorer (Gap 1) and corpus helpers (Gap 2)
+// Corpus-helper test suite (TRP-001 Gap 2).
+//
+// The fuzzy scorer (former TRP-001 Gap 1) now lives in
+// @laurigates/comfy-modal-kit (`fuzzyRank` / `fuzzyScore`) and is tested
+// there — this pack reuses the kit's exported ranker (see ADR-0011), so it
+// no longer owns a local copy to test.
 
 import { readFileSync } from "node:fs";
 import { describe, expect, test } from "vitest";
 
-import { compileCorpus, fuzzyRank, fuzzyScore, lookup, safeRegex } from "../../src/index.ts";
+import { compileCorpus, lookup, safeRegex } from "../../src/index.ts";
 
 // The real shipped corpus, compiled — used by the RES4LYF coverage regression.
 const SAMPLERS_CORPUS = compileCorpus(
@@ -199,109 +203,5 @@ describe("RES4LYF token coverage (regression)", () => {
 
   test.each(previouslyUncovered)("resolves %s", (token) => {
     expect(lookup(SAMPLERS_CORPUS, token)).not.toBeNull();
-  });
-});
-
-// ============================================================
-// Gap 1: Fuzzy scorer
-// ============================================================
-
-describe("fuzzyScore", () => {
-  test("exact prefix character match gets start-of-string bonus", () => {
-    const scorePrefix = fuzzyScore("e", "euler");
-    const scoreMidString = fuzzyScore("e", "heun");
-
-    expect(scorePrefix).not.toBeNull();
-    expect(scoreMidString).not.toBeNull();
-    expect(scorePrefix.score).toBeGreaterThan(scoreMidString.score);
-  });
-
-  test("word-boundary bonus fires on underscore separator", () => {
-    const result = fuzzyScore("dpms", "dpmpp_2m_sde");
-    expect(result).not.toBeNull();
-    // "dpms" matches: d(0) p(1) m(8 after underscore) s(12 after underscore)
-    // Word boundary bonuses apply to m and s because they follow underscores
-    expect(result.score).toBeGreaterThan(0);
-    expect(result.matches).toHaveLength(4);
-  });
-
-  test("returns null for non-subsequence query", () => {
-    const result = fuzzyScore("xyz", "euler");
-    expect(result).toBeNull();
-  });
-
-  test("empty query returns zero score with empty matches", () => {
-    const result = fuzzyScore("", "euler");
-    expect(result).toEqual({ score: 0, matches: [] });
-  });
-
-  test("matches array contains character indices in order", () => {
-    const result = fuzzyScore("euler", "euler");
-    expect(result).not.toBeNull();
-    expect(result.matches).toEqual([0, 1, 2, 3, 4]);
-  });
-
-  test("case-insensitive matching", () => {
-    const result = fuzzyScore("EULER", "euler");
-    expect(result).not.toBeNull();
-    expect(result.matches.length).toBe(5);
-  });
-});
-
-describe("fuzzyRank", () => {
-  test("AND-token semantics — returns null when token not found", () => {
-    const corpus = compileCorpus({
-      exact: { euler: { summary: "a stepper" } },
-      prefix: [],
-    });
-    const info = lookup(corpus, "euler");
-    const result = fuzzyRank("euler", info, "dpm sde");
-    expect(result).toBeNull();
-  });
-
-  test("AND-token semantics — returns non-null when all tokens match", () => {
-    const corpus = compileCorpus({
-      exact: { dpmpp_2m_sde: { summary: "a stepper family" } },
-      prefix: [],
-    });
-    const info = lookup(corpus, "dpmpp_2m_sde");
-    const result = fuzzyRank("dpmpp_2m_sde", info, "dpm sde");
-    expect(result).not.toBeNull();
-    expect(result.score).toBeGreaterThan(0);
-  });
-
-  test("empty query returns zero score with no name matches", () => {
-    const result = fuzzyRank("euler", { summary: "test" }, "");
-    expect(result).toEqual({ score: 0, nameMatches: [] });
-  });
-
-  test("name matches contribute 10x weight vs metadata", () => {
-    // Single token that matches the name
-    const result = fuzzyRank("euler", { summary: "far away in summary" }, "eu");
-    expect(result).not.toBeNull();
-    expect(result.nameMatches.length).toBeGreaterThan(0);
-  });
-
-  test("single token matching name only", () => {
-    const result = fuzzyRank("dpmpp_2m", { summary: "some sampler" }, "dpm");
-    expect(result).not.toBeNull();
-    expect(result.score).toBeGreaterThan(0);
-  });
-
-  test("single token not matching name or metadata returns null", () => {
-    const result = fuzzyRank("euler", { summary: "some stepper" }, "xyz");
-    expect(result).toBeNull();
-  });
-
-  test("nameMatches array is sorted in ascending index order", () => {
-    const result = fuzzyRank("dpmpp_2m_sde", { summary: "a sampler" }, "dpms");
-    expect(result).not.toBeNull();
-    expect(result.nameMatches).toEqual([...result.nameMatches].sort((a, b) => a - b));
-  });
-
-  test("null info (no metadata) still scores name matches", () => {
-    const result = fuzzyRank("euler", null, "eu");
-    expect(result).not.toBeNull();
-    expect(result.score).toBeGreaterThan(0);
   });
 });

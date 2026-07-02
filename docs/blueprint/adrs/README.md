@@ -30,6 +30,8 @@ fd -e md --exclude README.md . docs/blueprint/adrs/ \
 | ADR-0007 | Testing Strategy — Syntax Validation and Manual Browser Smoke Tests | Superseded by ADR-0009 | testing |
 | ADR-0008 | Widget Detection by Name, Not by Node Type | Accepted | api-design |
 | ADR-0009 | Adopt Vitest as a Dev-Only Test Harness for Pure JS Functions | Accepted | testing |
+| ADR-0010 | Adopt TypeScript + bun build (supersedes ADR-0001, ADR-0003) | Accepted | build-tooling |
+| ADR-0011 | Adopt comfy-modal-kit field-provider registry + click coordination | Accepted | api-design |
 
 ## Proposed ADRs
 

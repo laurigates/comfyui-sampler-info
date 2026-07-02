@@ -1,3 +1,189 @@
+// node_modules/@laurigates/comfy-modal-kit/dist/index.js
+var KEY = Symbol.for("laurigates.comfyModalKit");
+function getKit() {
+  const g = globalThis;
+  let kit = g[KEY];
+  if (!kit) {
+    kit = { fieldProviders: [], activeModal: null, pointerClaim: null };
+    g[KEY] = kit;
+  }
+  return kit;
+}
+function registerFieldProvider(provider) {
+  const list = getKit().fieldProviders;
+  const i = list.findIndex((p) => p.id === provider.id);
+  if (i >= 0) {
+    list.splice(i, 1, provider);
+  } else {
+    list.push(provider);
+  }
+}
+var guardInstalled = false;
+function setActiveModal(handle) {
+  installPointerGuard();
+  dismissActiveModal();
+  getKit().activeModal = handle;
+}
+function dismissActiveModal() {
+  const kit = getKit();
+  const active = kit.activeModal;
+  if (!active)
+    return;
+  kit.activeModal = null;
+  try {
+    active.close();
+  } catch (e) {
+    console.warn("[comfy-modal-kit] active modal close() threw", e);
+  }
+}
+function isModalActive() {
+  return getKit().activeModal !== null;
+}
+function patchWidgetPointer(widget, opener) {
+  const original = widget.onPointerDown;
+  function patched(pointer, node, canvas) {
+    try {
+      if (typeof original === "function") {
+        const consumed = original.call(this, pointer, node, canvas);
+        if (consumed)
+          return consumed;
+      }
+      return opener(pointer, node, canvas);
+    } catch (e) {
+      console.warn("[comfy-modal-kit] patched onPointerDown threw", e);
+      return false;
+    }
+  }
+  widget.onPointerDown = patched;
+  return {
+    restore() {
+      widget.onPointerDown = original;
+    }
+  };
+}
+function installPointerGuard() {
+  if (guardInstalled)
+    return;
+  if (typeof window === "undefined")
+    return;
+  guardInstalled = true;
+  window.addEventListener("pointerdown", pointerGuard, true);
+}
+function pointerGuard(e) {
+  const active = getKit().activeModal;
+  if (!active)
+    return;
+  const target = e.target;
+  if (active.element && target && active.element.contains(target)) {
+    return;
+  }
+  e.stopImmediatePropagation();
+  dismissActiveModal();
+}
+function fuzzyScore(query, target) {
+  if (!query)
+    return { score: 0, matches: [] };
+  if (!target)
+    return null;
+  const q = query.toLowerCase();
+  const t = target.toLowerCase();
+  const matches = [];
+  let qi = 0;
+  let score = 0;
+  let consecutive = 0;
+  let prevMatchIdx = -1;
+  for (let ti = 0;ti < t.length && qi < q.length; ti++) {
+    if (t[ti] !== q[qi]) {
+      consecutive = 0;
+      continue;
+    }
+    let charScore = 1;
+    if (ti === 0) {
+      charScore += 5;
+    } else {
+      const prev = t[ti - 1];
+      const orig = target[ti];
+      if (prev === "_" || prev === "-" || prev === " " || prev === "." || prev === "/") {
+        charScore += 4;
+      } else if (prev !== undefined && prev >= "a" && prev <= "z" && orig !== undefined && orig >= "A" && orig <= "Z") {
+        charScore += 3;
+      }
+    }
+    if (ti === prevMatchIdx + 1) {
+      consecutive++;
+      charScore += consecutive * 2;
+    } else {
+      consecutive = 0;
+    }
+    score += charScore;
+    matches.push(ti);
+    prevMatchIdx = ti;
+    qi++;
+  }
+  if (qi < q.length)
+    return null;
+  score -= target.length * 0.01;
+  return { score, matches };
+}
+function fuzzyRank(query, fields, primaryWeight = 10) {
+  if (!query)
+    return { score: 0, primaryMatches: [] };
+  const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
+  if (!tokens.length)
+    return { score: 0, primaryMatches: [] };
+  const primary = fields[0] || "";
+  const rest = fields.slice(1).filter((f) => Boolean(f));
+  let totalScore = 0;
+  const primaryMatchSet = new Set;
+  for (const token of tokens) {
+    const primaryResult = fuzzyScore(token, primary);
+    let best = primaryResult ? {
+      score: primaryResult.score * primaryWeight,
+      matches: primaryResult.matches,
+      onPrimary: true
+    } : null;
+    for (const field of rest) {
+      const r = fuzzyScore(token, field);
+      if (r && (!best || r.score > best.score)) {
+        best = { score: r.score, matches: r.matches, onPrimary: false };
+      }
+    }
+    if (!best)
+      return null;
+    totalScore += best.score;
+    if (best.onPrimary) {
+      for (const i of best.matches)
+        primaryMatchSet.add(i);
+    }
+  }
+  return {
+    score: totalScore,
+    primaryMatches: [...primaryMatchSet].sort((a, b) => a - b)
+  };
+}
+function highlightMatches(target, matchIndices) {
+  const frag = document.createDocumentFragment();
+  if (!target)
+    return frag;
+  const set = new Set(matchIndices || []);
+  if (!set.size) {
+    frag.appendChild(document.createTextNode(target));
+    return frag;
+  }
+  for (let i = 0;i < target.length; i++) {
+    const ch = target[i];
+    if (set.has(i)) {
+      const m = document.createElement("span");
+      m.className = "cmp-match";
+      m.textContent = ch;
+      frag.appendChild(m);
+    } else {
+      frag.appendChild(document.createTextNode(ch));
+    }
+  }
+  return frag;
+}
+
 // src/index.ts
 import { app } from "/scripts/app.js";
 var EXT_NAME = "comfyui-sampler-info";
@@ -6,6 +192,7 @@ var SAMPLER_WIDGET_NAMES = new Set(["sampler_name", "sampler"]);
 var SCHEDULER_WIDGET_NAMES = new Set(["scheduler"]);
 var STYLE_ID = "sampler-info-style";
 var DIALOG_ID = "sampler-info-dialog";
+var NAME_WEIGHT = 10;
 var SAMPLERS = { exact: {}, prefix: [], alias: {} };
 var SCHEDULERS = { exact: {}, prefix: [], alias: {} };
 var CORPUS_LOADED = false;
@@ -95,8 +282,11 @@ function formatSchedulerTooltip(token, info) {
   return lines.join(`
 `);
 }
+function isSchedulerName(name) {
+  return typeof name === "string" && SCHEDULER_WIDGET_NAMES.has(name);
+}
 function isSchedulerWidget(widget) {
-  return SCHEDULER_WIDGET_NAMES.has(widget.name);
+  return isSchedulerName(widget.name);
 }
 function widgetCorpus(widget) {
   return isSchedulerWidget(widget) ? SCHEDULERS : SAMPLERS;
@@ -180,7 +370,18 @@ var CSS = `
     background: #2a2a32;
     color: #fff;
 }
-#${DIALOG_ID} .si-searchrow {
+/* The picker body is scoped to .si-picker (not #dialog) so the same markup
+   works mounted inline in the field editor and inside the on-canvas modal. */
+.si-picker {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    color: #e8e8ea;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+.si-picker .si-searchrow {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -188,7 +389,7 @@ var CSS = `
     border-bottom: 1px solid #2a2a32;
     flex-shrink: 0;
 }
-#${DIALOG_ID} .si-search {
+.si-picker .si-search {
     flex: 1;
     background: #12121a;
     border: 1px solid #3a3a44;
@@ -201,68 +402,72 @@ var CSS = `
     outline: none;
     min-width: 0;
 }
-#${DIALOG_ID} .si-search:focus {
+.si-picker .si-search:focus {
     border-color: #6ba6ff;
 }
-#${DIALOG_ID} .si-count {
+.si-picker .si-count {
     color: #888;
     font-size: 12px;
     white-space: nowrap;
 }
-#${DIALOG_ID} .si-list {
+.si-picker .si-list {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding: 4px 0;
+    min-height: 0;
 }
-#${DIALOG_ID} .si-row {
+.si-picker .si-row {
     padding: 8px 14px;
     cursor: pointer;
     border-left: 3px solid transparent;
     border-bottom: 1px solid #22222a;
 }
-#${DIALOG_ID} .si-row:last-child {
+.si-picker .si-row:last-child {
     border-bottom: none;
 }
-#${DIALOG_ID} .si-row:hover,
-#${DIALOG_ID} .si-row.si-active {
+.si-picker .si-row:hover,
+.si-picker .si-row.si-active {
     background: #2a2a36;
     border-left-color: #6ba6ff;
 }
-#${DIALOG_ID} .si-row.si-current {
+.si-picker .si-row.si-current {
     background: #1f2a1f;
     border-left-color: #6bff8e;
 }
-#${DIALOG_ID} .si-row.si-current.si-active {
+.si-picker .si-row.si-current.si-active {
     background: #243524;
 }
-#${DIALOG_ID} .si-row-head {
+.si-picker .si-row-head {
     display: flex;
     align-items: baseline;
     gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 3px;
 }
-#${DIALOG_ID} .si-name {
+.si-picker .si-name {
     font-weight: 600;
     color: #e8e8ea;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 13px;
 }
-#${DIALOG_ID} .si-row.si-current .si-name::after {
+.si-picker .si-row.si-current .si-name::after {
     content: " · current";
     color: #6bff8e;
     font-weight: 400;
     font-family: system-ui, sans-serif;
     font-size: 11px;
 }
-#${DIALOG_ID} .si-match {
+/* Matched characters — the kit's highlightMatches() wraps them in
+   <span class="cmp-match">. Style that class here so the highlight renders
+   whether the list is inline or in the modal. */
+.si-picker .cmp-match {
     color: #ffd866;
     font-weight: 700;
     text-shadow: 0 0 1px rgba(255, 216, 102, 0.5);
 }
-#${DIALOG_ID} .si-badge {
+.si-picker .si-badge {
     display: inline-block;
     padding: 1px 6px;
     border-radius: 3px;
@@ -273,25 +478,31 @@ var CSS = `
     font-family: system-ui, sans-serif;
     border: 1px solid #3a3a44;
 }
-#${DIALOG_ID} .si-badge-year { color: #d8c878; border-color: #4a3e2a; }
-#${DIALOG_ID} .si-badge-family { color: #c8a8ff; border-color: #3a2e4a; }
-#${DIALOG_ID} .si-badge-order { color: #9ec6ff; border-color: #2a3a4a; }
-#${DIALOG_ID} .si-badge-type { color: #b8c8a8; border-color: #2e3a2a; }
-#${DIALOG_ID} .si-summary {
+.si-picker .si-badge-year { color: #d8c878; border-color: #4a3e2a; }
+.si-picker .si-badge-family { color: #c8a8ff; border-color: #3a2e4a; }
+.si-picker .si-badge-order { color: #9ec6ff; border-color: #2a3a4a; }
+.si-picker .si-badge-type { color: #b8c8a8; border-color: #2e3a2a; }
+.si-picker .si-summary {
     color: #b8b8c0;
     font-size: 12px;
     line-height: 1.4;
 }
-#${DIALOG_ID} .si-meta {
+.si-picker .si-meta {
     color: #888;
     font-size: 11px;
     margin-top: 3px;
     line-height: 1.4;
 }
-#${DIALOG_ID} .si-meta strong { color: #aaa; font-weight: 600; }
-#${DIALOG_ID} .si-nodata {
+.si-picker .si-meta strong { color: #aaa; font-weight: 600; }
+.si-picker .si-nodata {
     color: #888;
     font-size: 12px;
+    font-style: italic;
+}
+.si-picker .si-empty {
+    padding: 40px 14px;
+    text-align: center;
+    color: #777;
     font-style: italic;
 }
 #${DIALOG_ID} .si-footer {
@@ -314,12 +525,6 @@ var CSS = `
     font-size: 10px;
     color: #b8b8c0;
 }
-#${DIALOG_ID} .si-empty {
-    padding: 40px 14px;
-    text-align: center;
-    color: #777;
-    font-style: italic;
-}
 `;
 function ensureStyle() {
   if (document.getElementById(STYLE_ID))
@@ -329,19 +534,11 @@ function ensureStyle() {
   style.textContent = CSS;
   document.head.appendChild(style);
 }
-function dismissPicker() {
-  document.getElementById(DIALOG_ID)?.remove();
-  document.getElementById(`${DIALOG_ID}-backdrop`)?.remove();
-  document.removeEventListener("keydown", onPickerKeydown, true);
-  PICKER_STATE = null;
-}
-var PICKER_STATE = null;
-function getWidgetValues(widget) {
-  const raw = widget.options?.values;
-  let values = raw;
-  if (typeof raw === "function") {
+function resolveComboValues(rawValues, widget, node) {
+  let values = rawValues;
+  if (typeof rawValues === "function") {
     try {
-      values = raw(widget, app.canvas?.current_node);
+      values = rawValues(widget, node);
     } catch (e) {
       console.warn(`[${EXT_NAME}] values function threw`, e);
       values = [];
@@ -352,21 +549,7 @@ function getWidgetValues(widget) {
 function buildNameEl(value, matches) {
   const el = document.createElement("span");
   el.className = "si-name";
-  if (!matches?.length) {
-    el.textContent = value;
-    return el;
-  }
-  const matchSet = new Set(matches);
-  for (let i = 0;i < value.length; i++) {
-    if (matchSet.has(i)) {
-      const m = document.createElement("span");
-      m.className = "si-match";
-      m.textContent = value[i];
-      el.appendChild(m);
-    } else {
-      el.appendChild(document.createTextNode(value[i]));
-    }
-  }
+  el.appendChild(highlightMatches(value, matches));
   return el;
 }
 function buildRowEl(value, info, isCurrent, nameMatches) {
@@ -436,173 +619,192 @@ function buildRowEl(value, info, isCurrent, nameMatches) {
   }
   return row;
 }
-function fuzzyScore(query, target) {
-  if (!query)
-    return { score: 0, matches: [] };
-  const q = query.toLowerCase();
-  const t = target.toLowerCase();
-  const matches = [];
-  let qi = 0;
-  let score = 0;
-  let consecutive = 0;
-  let prevMatchIdx = -1;
-  for (let ti = 0;ti < t.length && qi < q.length; ti++) {
-    if (t[ti] !== q[qi]) {
-      consecutive = 0;
-      continue;
+function rankFields(value, info) {
+  return [
+    value,
+    info?.family,
+    info?.summary,
+    info?.good_for,
+    info?.type,
+    info?.year != null ? String(info.year) : null,
+    info?.supersedes_by
+  ];
+}
+function createPickerBody(opts) {
+  const { values, corpus, initialValue, isScheduler, onCommit } = opts;
+  let selectedValue = initialValue;
+  let visibleRows = [];
+  let activeIndex = -1;
+  const root = document.createElement("div");
+  root.className = "si-picker";
+  const searchRow = document.createElement("div");
+  searchRow.className = "si-searchrow";
+  const searchEl = document.createElement("input");
+  searchEl.className = "si-search";
+  searchEl.type = "text";
+  searchEl.placeholder = isScheduler ? "Fuzzy filter (e.g. 'kar', 'beta')…" : "Fuzzy filter (e.g. 'dpms', 'dpm sde', '2m')…";
+  searchEl.spellcheck = false;
+  searchEl.autocomplete = "off";
+  const countEl = document.createElement("div");
+  countEl.className = "si-count";
+  searchRow.appendChild(searchEl);
+  searchRow.appendChild(countEl);
+  root.appendChild(searchRow);
+  const listEl = document.createElement("div");
+  listEl.className = "si-list";
+  root.appendChild(listEl);
+  function commitOrSelect(value) {
+    if (onCommit) {
+      onCommit(value);
+      return;
     }
-    let charScore = 1;
-    if (ti === 0) {
-      charScore += 5;
-    } else {
-      const prev = t[ti - 1];
-      const cur = target[ti];
-      if (prev === "_" || prev === "-" || prev === " " || prev === "." || prev === "/") {
-        charScore += 4;
-      } else if (prev >= "a" && prev <= "z" && cur >= "A" && cur <= "Z") {
-        charScore += 3;
+    selectedValue = value;
+    renderRows();
+  }
+  function setActiveRow(rowEl) {
+    visibleRows.forEach((r, i) => {
+      if (r === rowEl) {
+        r.classList.add("si-active");
+        activeIndex = i;
+      } else {
+        r.classList.remove("si-active");
+      }
+    });
+  }
+  function moveActive(delta) {
+    if (!visibleRows.length)
+      return;
+    let i = activeIndex + delta;
+    if (i < 0)
+      i = visibleRows.length - 1;
+    if (i >= visibleRows.length)
+      i = 0;
+    visibleRows.forEach((r, j) => {
+      r.classList.toggle("si-active", j === i);
+    });
+    activeIndex = i;
+    visibleRows[i].scrollIntoView({ block: "nearest" });
+  }
+  function renderRows() {
+    const query = searchEl.value.trim();
+    const hasFilter = !!query;
+    const ranked = [];
+    for (const value of values) {
+      const info = lookup(corpus, value);
+      if (!hasFilter) {
+        ranked.push({ value, info, score: 0, nameMatches: [] });
+        continue;
+      }
+      const r = fuzzyRank(query, rankFields(value, info), NAME_WEIGHT);
+      if (r)
+        ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches });
+    }
+    if (hasFilter)
+      ranked.sort((a, b) => b.score - a.score);
+    listEl.innerHTML = "";
+    visibleRows = [];
+    let activeAssigned = false;
+    let shown = 0;
+    for (const { value, info, nameMatches } of ranked) {
+      const row = buildRowEl(value, info, value === selectedValue, nameMatches);
+      row.addEventListener("click", () => commitOrSelect(value));
+      row.addEventListener("mouseenter", () => setActiveRow(row));
+      listEl.appendChild(row);
+      visibleRows.push(row);
+      if (!activeAssigned) {
+        if (hasFilter && shown === 0) {
+          row.classList.add("si-active");
+          activeIndex = 0;
+          activeAssigned = true;
+        } else if (!hasFilter && value === selectedValue) {
+          row.classList.add("si-active");
+          activeIndex = shown;
+          activeAssigned = true;
+        }
+      }
+      shown++;
+    }
+    if (!shown) {
+      const empty = document.createElement("div");
+      empty.className = "si-empty";
+      empty.textContent = "No matches.";
+      listEl.appendChild(empty);
+      activeIndex = -1;
+    } else if (!activeAssigned) {
+      visibleRows[0].classList.add("si-active");
+      activeIndex = 0;
+    }
+    countEl.textContent = `${shown} / ${values.length}`;
+  }
+  function onKeydown(e) {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        moveActive(1);
+        return;
+      case "ArrowUp":
+        e.preventDefault();
+        moveActive(-1);
+        return;
+      case "PageDown":
+        e.preventDefault();
+        moveActive(8);
+        return;
+      case "PageUp":
+        e.preventDefault();
+        moveActive(-8);
+        return;
+      case "Enter": {
+        e.preventDefault();
+        const row = visibleRows[activeIndex];
+        if (row?.dataset.value !== undefined)
+          commitOrSelect(row.dataset.value);
+        return;
       }
     }
-    if (ti === prevMatchIdx + 1) {
-      consecutive++;
-      charScore += consecutive * 2;
-    } else {
-      consecutive = 0;
-    }
-    score += charScore;
-    matches.push(ti);
-    prevMatchIdx = ti;
-    qi++;
-  }
-  if (qi < q.length)
-    return null;
-  score -= target.length * 0.01;
-  return { score, matches };
-}
-function fuzzyRank(value, info, query) {
-  if (!query)
-    return { score: 0, nameMatches: [] };
-  const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (!tokens.length)
-    return { score: 0, nameMatches: [] };
-  let totalScore = 0;
-  const nameMatchSet = new Set;
-  const metaFields = info ? [
-    info.family,
-    info.summary,
-    info.good_for,
-    info.type,
-    info.year != null ? String(info.year) : null,
-    info.supersedes_by
-  ].filter(Boolean) : [];
-  for (const token of tokens) {
-    const nameResult = fuzzyScore(token, value);
-    let best = nameResult ? { score: nameResult.score * 10, matches: nameResult.matches, onName: true } : null;
-    for (const field of metaFields) {
-      const r = fuzzyScore(token, field);
-      if (r && (!best || r.score > best.score)) {
-        best = { score: r.score, matches: r.matches, onName: false };
+    if (document.activeElement === searchEl)
+      return;
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      searchEl.focus();
+      const pos = searchEl.selectionStart ?? searchEl.value.length;
+      if (pos > 0) {
+        searchEl.value = searchEl.value.slice(0, pos - 1) + searchEl.value.slice(pos);
+        searchEl.setSelectionRange(pos - 1, pos - 1);
+        renderRows();
       }
+      return;
     }
-    if (!best)
-      return null;
-    totalScore += best.score;
-    if (best.onName) {
-      for (const i of best.matches)
-        nameMatchSet.add(i);
+    const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (isPrintable) {
+      e.preventDefault();
+      searchEl.focus();
+      const pos = searchEl.selectionStart ?? searchEl.value.length;
+      searchEl.value = searchEl.value.slice(0, pos) + e.key + searchEl.value.slice(pos);
+      searchEl.setSelectionRange(pos + 1, pos + 1);
+      renderRows();
     }
   }
-  return { score: totalScore, nameMatches: [...nameMatchSet].sort((a, b) => a - b) };
-}
-function renderRows() {
-  if (!PICKER_STATE)
-    return;
-  const { listEl, countEl, values, corpus, currentValue, searchEl } = PICKER_STATE;
-  const query = searchEl.value.trim();
-  const hasFilter = !!query;
-  const ranked = [];
-  for (const value of values) {
-    const info = lookup(corpus, value);
-    if (!hasFilter) {
-      ranked.push({ value, info, score: 0, nameMatches: [] });
-      continue;
+  searchEl.addEventListener("input", renderRows);
+  root.addEventListener("keydown", onKeydown);
+  renderRows();
+  return {
+    el: root,
+    searchEl,
+    getValue: () => selectedValue,
+    focus: () => searchEl.focus(),
+    destroy: () => {
+      root.removeEventListener("keydown", onKeydown);
+      searchEl.removeEventListener("input", renderRows);
+      root.remove();
     }
-    const r = fuzzyRank(value, info, query);
-    if (r)
-      ranked.push({ value, info, score: r.score, nameMatches: r.nameMatches });
-  }
-  if (hasFilter)
-    ranked.sort((a, b) => b.score - a.score);
-  listEl.innerHTML = "";
-  PICKER_STATE.visibleRows = [];
-  let activeAssigned = false;
-  let shown = 0;
-  for (const { value, info, nameMatches } of ranked) {
-    const row = buildRowEl(value, info, value === currentValue, nameMatches);
-    row.addEventListener("click", () => selectAndClose(value));
-    row.addEventListener("mouseenter", () => setActiveRow(row));
-    listEl.appendChild(row);
-    PICKER_STATE.visibleRows.push(row);
-    if (!activeAssigned) {
-      if (hasFilter && shown === 0) {
-        row.classList.add("si-active");
-        PICKER_STATE.activeIndex = 0;
-        activeAssigned = true;
-      } else if (!hasFilter && value === currentValue) {
-        row.classList.add("si-active");
-        PICKER_STATE.activeIndex = shown;
-        activeAssigned = true;
-      }
-    }
-    shown++;
-  }
-  if (!shown) {
-    const empty = document.createElement("div");
-    empty.className = "si-empty";
-    empty.textContent = "No matches.";
-    listEl.appendChild(empty);
-    PICKER_STATE.activeIndex = -1;
-  } else if (!activeAssigned) {
-    PICKER_STATE.visibleRows[0].classList.add("si-active");
-    PICKER_STATE.activeIndex = 0;
-  }
-  countEl.textContent = `${shown} / ${values.length}`;
+  };
 }
-function setActiveRow(rowEl) {
-  if (!PICKER_STATE)
-    return;
-  PICKER_STATE.visibleRows.forEach((r, i) => {
-    if (r === rowEl) {
-      r.classList.add("si-active");
-      if (PICKER_STATE)
-        PICKER_STATE.activeIndex = i;
-    } else {
-      r.classList.remove("si-active");
-    }
-  });
+function centerActiveRow(listEl) {
+  const active = listEl.querySelector(".si-row.si-active");
+  active?.scrollIntoView({ block: "center" });
 }
-function moveActive(delta) {
-  if (!PICKER_STATE)
-    return;
-  const rows = PICKER_STATE.visibleRows;
-  if (!rows.length)
-    return;
-  let i = PICKER_STATE.activeIndex + delta;
-  if (i < 0)
-    i = rows.length - 1;
-  if (i >= rows.length)
-    i = 0;
-  rows.forEach((r, j) => {
-    r.classList.toggle("si-active", j === i);
-  });
-  PICKER_STATE.activeIndex = i;
-  rows[i].scrollIntoView({ block: "nearest" });
-}
-function selectAndClose(value) {
-  if (!PICKER_STATE)
-    return;
-  const { widget, node } = PICKER_STATE;
-  dismissPicker();
+function commitWidgetValue(widget, node, value) {
   widget.value = value;
   try {
     widget.callback?.call(widget, value, app.canvas, node);
@@ -615,84 +817,17 @@ function selectAndClose(value) {
   node?.setDirtyCanvas?.(true, true);
   app.graph?.setDirtyCanvas?.(true, true);
 }
-function onPickerKeydown(e) {
-  if (!PICKER_STATE)
-    return;
-  switch (e.key) {
-    case "Escape":
-      e.preventDefault();
-      e.stopPropagation();
-      dismissPicker();
-      return;
-    case "ArrowDown":
-      e.preventDefault();
-      moveActive(1);
-      return;
-    case "ArrowUp":
-      e.preventDefault();
-      moveActive(-1);
-      return;
-    case "PageDown":
-      e.preventDefault();
-      moveActive(8);
-      return;
-    case "PageUp":
-      e.preventDefault();
-      moveActive(-8);
-      return;
-    case "Enter": {
-      e.preventDefault();
-      const i = PICKER_STATE.activeIndex;
-      const row = PICKER_STATE.visibleRows[i];
-      if (row?.dataset.value !== undefined)
-        selectAndClose(row.dataset.value);
-      return;
-    }
-  }
-  if (document.activeElement === PICKER_STATE.searchEl)
-    return;
-  const el = PICKER_STATE.searchEl;
-  if (e.key === "Backspace") {
-    e.preventDefault();
-    el.focus();
-    const pos = el.selectionStart ?? el.value.length;
-    if (pos > 0) {
-      el.value = el.value.slice(0, pos - 1) + el.value.slice(pos);
-      el.setSelectionRange(pos - 1, pos - 1);
-      renderRows();
-    }
-    return;
-  }
-  const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
-  if (isPrintable) {
-    e.preventDefault();
-    el.focus();
-    const pos = el.selectionStart ?? el.value.length;
-    el.value = el.value.slice(0, pos) + e.key + el.value.slice(pos);
-    el.setSelectionRange(pos + 1, pos + 1);
-    renderRows();
-  }
-}
 function openPicker(widget, node) {
   ensureStyle();
-  dismissPicker();
-  const values = getWidgetValues(widget);
+  const values = resolveComboValues(widget.options?.values, widget, app.canvas?.current_node);
   if (!values.length)
     return;
-  const corpus = widgetCorpus(widget);
   const isScheduler = isSchedulerWidget(widget);
   const backdrop = document.createElement("div");
   backdrop.id = `${DIALOG_ID}-backdrop`;
-  backdrop.addEventListener("pointerdown", dismissPicker);
+  backdrop.addEventListener("pointerdown", () => dismissActiveModal());
   const dialog = document.createElement("div");
   dialog.id = DIALOG_ID;
-  dialog.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const t = e.target;
-    if (t.tagName !== "INPUT" && t.tagName !== "BUTTON" && !t.closest?.(".si-row")) {
-      PICKER_STATE?.searchEl?.focus();
-    }
-  });
   const header = document.createElement("div");
   header.className = "si-header";
   const title = document.createElement("div");
@@ -706,26 +841,28 @@ function openPicker(widget, node) {
   closeBtn.className = "si-close";
   closeBtn.textContent = "×";
   closeBtn.title = "Close (Esc)";
-  closeBtn.addEventListener("click", dismissPicker);
+  closeBtn.addEventListener("click", () => dismissActiveModal());
   header.appendChild(title);
   header.appendChild(closeBtn);
   dialog.appendChild(header);
-  const searchRow = document.createElement("div");
-  searchRow.className = "si-searchrow";
-  const searchEl = document.createElement("input");
-  searchEl.className = "si-search";
-  searchEl.type = "text";
-  searchEl.placeholder = isScheduler ? "Fuzzy filter (e.g. 'kar', 'beta')…" : "Fuzzy filter (e.g. 'dpms', 'dpm sde', '2m')…";
-  searchEl.spellcheck = false;
-  searchEl.autocomplete = "off";
-  const countEl = document.createElement("div");
-  countEl.className = "si-count";
-  searchRow.appendChild(searchEl);
-  searchRow.appendChild(countEl);
-  dialog.appendChild(searchRow);
-  const listEl = document.createElement("div");
-  listEl.className = "si-list";
-  dialog.appendChild(listEl);
+  const body = createPickerBody({
+    values,
+    corpus: widgetCorpus(widget),
+    initialValue: String(widget.value),
+    isScheduler,
+    onCommit: (value) => {
+      dismissActiveModal();
+      commitWidgetValue(widget, node, value);
+    }
+  });
+  dialog.appendChild(body.el);
+  dialog.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const t = e.target;
+    if (t.tagName !== "INPUT" && t.tagName !== "BUTTON" && !t.closest?.(".si-row")) {
+      body.searchEl.focus();
+    }
+  });
   const footer = document.createElement("div");
   footer.className = "si-footer";
   const hintL = document.createElement("div");
@@ -735,28 +872,50 @@ function openPicker(widget, node) {
   footer.appendChild(hintL);
   footer.appendChild(hintR);
   dialog.appendChild(footer);
+  function closePicker() {
+    document.removeEventListener("keydown", onEscape, true);
+    body.destroy();
+    backdrop.remove();
+    dialog.remove();
+  }
+  function onEscape(e) {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      dismissActiveModal();
+    }
+  }
   document.body.appendChild(backdrop);
   document.body.appendChild(dialog);
-  PICKER_STATE = {
-    widget,
-    node,
-    values,
-    corpus,
-    currentValue: String(widget.value),
-    listEl,
-    countEl,
-    searchEl,
-    visibleRows: [],
-    activeIndex: -1
-  };
-  searchEl.addEventListener("input", renderRows);
-  document.addEventListener("keydown", onPickerKeydown, true);
-  renderRows();
-  const activeRow = PICKER_STATE.visibleRows[PICKER_STATE.activeIndex];
-  if (activeRow)
-    activeRow.scrollIntoView({ block: "center" });
-  searchEl.focus();
+  document.addEventListener("keydown", onEscape, true);
+  setActiveModal({ id: EXT_NAME, element: dialog, close: closePicker });
+  centerActiveRow(body.el);
+  body.focus();
 }
+registerFieldProvider({
+  id: EXT_NAME,
+  priority: 10,
+  match: (widget) => typeof widget?.name === "string" && (SAMPLER_WIDGET_NAMES.has(widget.name) || SCHEDULER_WIDGET_NAMES.has(widget.name)),
+  create: ({ widget, node, initialValue }) => {
+    ensureStyle();
+    const isScheduler = isSchedulerName(widget?.name);
+    const values = resolveComboValues(widget?.options?.values, widget, node);
+    const initialStr = String(initialValue ?? widget?.value ?? "");
+    const body = createPickerBody({
+      values,
+      corpus: isScheduler ? SCHEDULERS : SAMPLERS,
+      initialValue: initialStr,
+      isScheduler
+    });
+    return {
+      el: body.el,
+      getValue: () => body.getValue(),
+      hasChanged: () => body.getValue() !== initialStr,
+      focus: () => body.focus(),
+      destroy: () => body.destroy()
+    };
+  }
+});
 function enhanceNode(node) {
   if (!node?.widgets)
     return;
@@ -783,16 +942,12 @@ function enhanceNode(node) {
     }
     if (!w._samplerInfoPointerPatched) {
       w._samplerInfoPointerPatched = true;
-      const origDown = w.onPointerDown;
-      w.onPointerDown = function(pointer, ownerNode, canvas) {
-        if (typeof origDown === "function") {
-          const consumed = origDown.call(this, pointer, ownerNode, canvas);
-          if (consumed)
-            return consumed;
-        }
+      patchWidgetPointer(w, (_pointer, ownerNode) => {
+        if (isModalActive())
+          return false;
         openPicker(w, ownerNode || node);
         return true;
-      };
+      });
     }
   }
 }
@@ -820,7 +975,5 @@ app.registerExtension({
 export {
   safeRegex,
   lookup,
-  fuzzyScore,
-  fuzzyRank,
   compileCorpus
 };

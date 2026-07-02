@@ -17,5 +17,8 @@
     "@biomejs/biome": "^2.4.15",
     "vitest": "^4.1.7",
     "knip": "^5.0.0"
+  },
+  "dependencies": {
+    "@laurigates/comfy-modal-kit": "^0.4.0"
   }
 }

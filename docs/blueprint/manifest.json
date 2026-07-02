@@ -195,7 +195,7 @@
   },
   "id_registry": {
     "last_prd": 1,
-    "last_adr": 8,
+    "last_adr": 11,
     "documents": {
       "PRD-001": {
         "path": "docs/blueprint/prds/project-overview.md",
@@ -331,6 +331,22 @@
         "github_issues": [
           15
         ]
+      },
+      "ADR-0011": {
+        "path": "docs/blueprint/adrs/0011-adopt-comfy-modal-kit-field-provider.md",
+        "title": "Adopt comfy-modal-kit field-provider registry + click coordination",
+        "status": "Accepted",
+        "domain": "api-design",
+        "relates_to": [
+          "PRD-001",
+          "ADR-0002",
+          "ADR-0008",
+          "ADR-0010"
+        ],
+        "github_issues": [
+          63
+        ],
+        "created": "2026-07-02"
       }
     },
     "github_issues": {
@@ -343,7 +359,8 @@
       "12": "ADR-0006",
       "13": "ADR-0007",
       "14": "ADR-0008",
-      "15": "TRP-001"
+      "15": "TRP-001",
+      "63": "ADR-0011"
     },
     "last_trp": 1
   },
@@ -434,6 +451,15 @@
       "title": "Initial Scaffold — Coverage Gaps from First Feature Commit",
       "status": "Active",
       "created": "2026-05-21"
+    },
+    {
+      "id": "ADR-0011",
+      "type": "adr",
+      "path": "docs/blueprint/adrs/0011-adopt-comfy-modal-kit-field-provider.md",
+      "title": "Adopt comfy-modal-kit field-provider registry + click coordination",
+      "status": "Accepted",
+      "domain": "api-design",
+      "created": "2026-07-02"
     }
   ]
 }

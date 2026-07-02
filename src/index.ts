@@ -1,3 +1,13 @@
+import {
+  dismissActiveModal,
+  fuzzyRank,
+  highlightMatches,
+  isModalActive,
+  type PointerPatchableWidget,
+  patchWidgetPointer,
+  registerFieldProvider,
+  setActiveModal,
+} from "@laurigates/comfy-modal-kit";
 import { app } from "/scripts/app.js";
 
 // The package's `ComfyApp` type is the only widget/graph type it exports at
@@ -21,17 +31,22 @@ interface SamplerNode {
 
 type SamplerCanvas = unknown;
 
-// Two features:
+// Three additive integrations, all keyed off combo widgets named
+// sampler_name / sampler / scheduler:
 //
-// Option A: rewrite widget.options.tooltip on combo widgets named
-// sampler_name / sampler / scheduler so the corpus-defined description
-// (year, family, ODE order, summary, good_for, pairs_with) surfaces on
-// hover (desktop) and long-press (comfyui-touch-tooltips).
+// Option A: rewrite widget.options.tooltip so the corpus-defined description
+// (year, family, ODE order, summary, good_for, pairs_with) surfaces on hover
+// (desktop) and long-press (comfyui-touch-tooltips).
 //
-// Option B: intercept click on the widget center and open an HTML modal
-// picker with a search/filter input and per-row metadata. Native arrow-
-// button cycling (< / >) is preserved. Additive — if no corpus match,
-// the row still renders with the bare name.
+// Option B: intercept the on-canvas widget click via the shared
+// comfy-modal-kit `patchWidgetPointer` coordinator and open an HTML modal
+// picker with a search/filter input and per-row metadata.
+//
+// Option C: register a comfy-modal-kit *field provider* so consumers of the
+// shared registry (notably comfyui-prompt-editor) mount the same corpus-
+// annotated fuzzy list inline, in place of the built-in <select>. See
+// ADR-0011 (adopting the kit's field-provider registry + click coordinator)
+// and kit ADR-0001. Additive — if no corpus match, rows render bare names.
 
 const EXT_NAME = "comfyui-sampler-info";
 const DATA_BASE = `/extensions/${EXT_NAME}/data`;
@@ -39,6 +54,9 @@ const SAMPLER_WIDGET_NAMES = new Set(["sampler_name", "sampler"]);
 const SCHEDULER_WIDGET_NAMES = new Set(["scheduler"]);
 const STYLE_ID = "sampler-info-style";
 const DIALOG_ID = "sampler-info-dialog";
+// The primary field (the option name) is weighted this much heavier than the
+// metadata fields when ranking, so a hit on the name beats a hit on a summary.
+const NAME_WEIGHT = 10;
 
 // ============================================================
 // Types
@@ -97,19 +115,6 @@ interface PatchedWidget {
   _samplerInfoPatched?: boolean;
   _samplerInfoPointerPatched?: boolean;
   _samplerInfoOriginalTooltip?: string;
-}
-
-interface PickerState {
-  widget: PatchedWidget;
-  node: SamplerNode | null;
-  values: string[];
-  corpus: Corpus;
-  currentValue: string;
-  listEl: HTMLElement;
-  countEl: HTMLElement;
-  searchEl: HTMLInputElement;
-  visibleRows: HTMLElement[];
-  activeIndex: number;
 }
 
 let SAMPLERS: Corpus = { exact: {}, prefix: [], alias: {} };
@@ -207,8 +212,12 @@ function formatSchedulerTooltip(token: string, info: SamplerInfo): string {
   return lines.join("\n");
 }
 
+function isSchedulerName(name: string | undefined): boolean {
+  return typeof name === "string" && SCHEDULER_WIDGET_NAMES.has(name);
+}
+
 function isSchedulerWidget(widget: PatchedWidget): boolean {
-  return SCHEDULER_WIDGET_NAMES.has(widget.name);
+  return isSchedulerName(widget.name);
 }
 
 function widgetCorpus(widget: PatchedWidget): Corpus {
@@ -228,7 +237,7 @@ function refreshWidgetTooltip(widget: PatchedWidget): void {
 }
 
 // ============================================================
-// Option B: picker dialog
+// Option B/C: picker body (shared inline control)
 // ============================================================
 
 const CSS = `
@@ -297,7 +306,18 @@ const CSS = `
     background: #2a2a32;
     color: #fff;
 }
-#${DIALOG_ID} .si-searchrow {
+/* The picker body is scoped to .si-picker (not #dialog) so the same markup
+   works mounted inline in the field editor and inside the on-canvas modal. */
+.si-picker {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    flex: 1;
+    color: #e8e8ea;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 13px;
+}
+.si-picker .si-searchrow {
     display: flex;
     align-items: center;
     gap: 8px;
@@ -305,7 +325,7 @@ const CSS = `
     border-bottom: 1px solid #2a2a32;
     flex-shrink: 0;
 }
-#${DIALOG_ID} .si-search {
+.si-picker .si-search {
     flex: 1;
     background: #12121a;
     border: 1px solid #3a3a44;
@@ -318,68 +338,72 @@ const CSS = `
     outline: none;
     min-width: 0;
 }
-#${DIALOG_ID} .si-search:focus {
+.si-picker .si-search:focus {
     border-color: #6ba6ff;
 }
-#${DIALOG_ID} .si-count {
+.si-picker .si-count {
     color: #888;
     font-size: 12px;
     white-space: nowrap;
 }
-#${DIALOG_ID} .si-list {
+.si-picker .si-list {
     flex: 1;
     overflow-y: auto;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     padding: 4px 0;
+    min-height: 0;
 }
-#${DIALOG_ID} .si-row {
+.si-picker .si-row {
     padding: 8px 14px;
     cursor: pointer;
     border-left: 3px solid transparent;
     border-bottom: 1px solid #22222a;
 }
-#${DIALOG_ID} .si-row:last-child {
+.si-picker .si-row:last-child {
     border-bottom: none;
 }
-#${DIALOG_ID} .si-row:hover,
-#${DIALOG_ID} .si-row.si-active {
+.si-picker .si-row:hover,
+.si-picker .si-row.si-active {
     background: #2a2a36;
     border-left-color: #6ba6ff;
 }
-#${DIALOG_ID} .si-row.si-current {
+.si-picker .si-row.si-current {
     background: #1f2a1f;
     border-left-color: #6bff8e;
 }
-#${DIALOG_ID} .si-row.si-current.si-active {
+.si-picker .si-row.si-current.si-active {
     background: #243524;
 }
-#${DIALOG_ID} .si-row-head {
+.si-picker .si-row-head {
     display: flex;
     align-items: baseline;
     gap: 8px;
     flex-wrap: wrap;
     margin-bottom: 3px;
 }
-#${DIALOG_ID} .si-name {
+.si-picker .si-name {
     font-weight: 600;
     color: #e8e8ea;
     font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
     font-size: 13px;
 }
-#${DIALOG_ID} .si-row.si-current .si-name::after {
+.si-picker .si-row.si-current .si-name::after {
     content: " · current";
     color: #6bff8e;
     font-weight: 400;
     font-family: system-ui, sans-serif;
     font-size: 11px;
 }
-#${DIALOG_ID} .si-match {
+/* Matched characters — the kit's highlightMatches() wraps them in
+   <span class="cmp-match">. Style that class here so the highlight renders
+   whether the list is inline or in the modal. */
+.si-picker .cmp-match {
     color: #ffd866;
     font-weight: 700;
     text-shadow: 0 0 1px rgba(255, 216, 102, 0.5);
 }
-#${DIALOG_ID} .si-badge {
+.si-picker .si-badge {
     display: inline-block;
     padding: 1px 6px;
     border-radius: 3px;
@@ -390,25 +414,31 @@ const CSS = `
     font-family: system-ui, sans-serif;
     border: 1px solid #3a3a44;
 }
-#${DIALOG_ID} .si-badge-year { color: #d8c878; border-color: #4a3e2a; }
-#${DIALOG_ID} .si-badge-family { color: #c8a8ff; border-color: #3a2e4a; }
-#${DIALOG_ID} .si-badge-order { color: #9ec6ff; border-color: #2a3a4a; }
-#${DIALOG_ID} .si-badge-type { color: #b8c8a8; border-color: #2e3a2a; }
-#${DIALOG_ID} .si-summary {
+.si-picker .si-badge-year { color: #d8c878; border-color: #4a3e2a; }
+.si-picker .si-badge-family { color: #c8a8ff; border-color: #3a2e4a; }
+.si-picker .si-badge-order { color: #9ec6ff; border-color: #2a3a4a; }
+.si-picker .si-badge-type { color: #b8c8a8; border-color: #2e3a2a; }
+.si-picker .si-summary {
     color: #b8b8c0;
     font-size: 12px;
     line-height: 1.4;
 }
-#${DIALOG_ID} .si-meta {
+.si-picker .si-meta {
     color: #888;
     font-size: 11px;
     margin-top: 3px;
     line-height: 1.4;
 }
-#${DIALOG_ID} .si-meta strong { color: #aaa; font-weight: 600; }
-#${DIALOG_ID} .si-nodata {
+.si-picker .si-meta strong { color: #aaa; font-weight: 600; }
+.si-picker .si-nodata {
     color: #888;
     font-size: 12px;
+    font-style: italic;
+}
+.si-picker .si-empty {
+    padding: 40px 14px;
+    text-align: center;
+    color: #777;
     font-style: italic;
 }
 #${DIALOG_ID} .si-footer {
@@ -431,12 +461,6 @@ const CSS = `
     font-size: 10px;
     color: #b8b8c0;
 }
-#${DIALOG_ID} .si-empty {
-    padding: 40px 14px;
-    text-align: center;
-    color: #777;
-    font-style: italic;
-}
 `;
 
 function ensureStyle(): void {
@@ -447,21 +471,13 @@ function ensureStyle(): void {
   document.head.appendChild(style);
 }
 
-function dismissPicker(): void {
-  document.getElementById(DIALOG_ID)?.remove();
-  document.getElementById(`${DIALOG_ID}-backdrop`)?.remove();
-  document.removeEventListener("keydown", onPickerKeydown, true);
-  PICKER_STATE = null;
-}
-
-let PICKER_STATE: PickerState | null = null;
-
-function getWidgetValues(widget: PatchedWidget): string[] {
-  const raw = widget.options?.values;
-  let values: unknown = raw;
-  if (typeof raw === "function") {
+// The combo choices for a widget. `options.values` can be a static array or a
+// function `(widget, node) => string[]` (LiteGraph's dynamic-combo form).
+function resolveComboValues(rawValues: unknown, widget: unknown, node: unknown): string[] {
+  let values: unknown = rawValues;
+  if (typeof rawValues === "function") {
     try {
-      values = raw(widget, app.canvas?.current_node);
+      values = (rawValues as (w: unknown, n: unknown) => unknown)(widget, node);
     } catch (e) {
       console.warn(`[${EXT_NAME}] values function threw`, e);
       values = [];
@@ -470,24 +486,12 @@ function getWidgetValues(widget: PatchedWidget): string[] {
   return Array.isArray(values) ? (values as string[]) : [];
 }
 
-function buildNameEl(value: string, matches: number[] | undefined): HTMLSpanElement {
+function buildNameEl(value: string, matches: number[] | null | undefined): HTMLSpanElement {
   const el = document.createElement("span");
   el.className = "si-name";
-  if (!matches?.length) {
-    el.textContent = value;
-    return el;
-  }
-  const matchSet = new Set(matches);
-  for (let i = 0; i < value.length; i++) {
-    if (matchSet.has(i)) {
-      const m = document.createElement("span");
-      m.className = "si-match";
-      m.textContent = value[i] as string;
-      el.appendChild(m);
-    } else {
-      el.appendChild(document.createTextNode(value[i] as string));
-    }
-  }
+  // Reuse the kit's highlightMatches (spans matched chars in .cmp-match,
+  // escapes the rest). Handles a null/empty index list as plain text.
+  el.appendChild(highlightMatches(value, matches));
   return el;
 }
 
@@ -569,205 +573,247 @@ function buildRowEl(
   return row;
 }
 
-// ----- fzf-lite fuzzy matcher -----
-//
-// Greedy left-to-right subsequence match with scoring bonuses for matches
-// at the start of the string and after separators (_/-/space/dot/slash) —
-// the case sampler names hit on (e.g. "dpms" → strong match on
-// "dpmpp_2m_sde" because s/d/e/m all sit at underscore-token starts).
-// Consecutive matches earn an escalating bonus (clustering wins).
-//
-// AND-token semantics: a space in the query splits into tokens; every
-// token must match somewhere on the row (name or metadata). The name
-// match is weighted 10× metadata matches.
+// The fields fed to the kit's fuzzyRank, primary field (the name) first. The
+// kit weights the primary field NAME_WEIGHT× and splits the query into
+// space-separated AND-tokens, so a hit on the name beats a hit on the summary
+// and `dpm sde` requires both tokens somewhere on the row.
+function rankFields(value: string, info: SamplerInfo | null): (string | null | undefined)[] {
+  return [
+    value,
+    info?.family,
+    info?.summary,
+    info?.good_for,
+    info?.type,
+    info?.year != null ? String(info.year) : null,
+    info?.supersedes_by,
+  ];
+}
 
-export function fuzzyScore(
-  query: string,
-  target: string,
-): { score: number; matches: number[] } | null {
-  if (!query) return { score: 0, matches: [] };
-  const q = query.toLowerCase();
-  const t = target.toLowerCase();
-  const matches: number[] = [];
-  let qi = 0;
-  let score = 0;
-  let consecutive = 0;
-  let prevMatchIdx = -1;
+interface PickerBody {
+  el: HTMLDivElement;
+  searchEl: HTMLInputElement;
+  getValue(): string;
+  focus(): void;
+  destroy(): void;
+}
 
-  for (let ti = 0; ti < t.length && qi < q.length; ti++) {
-    if (t[ti] !== q[qi]) {
-      consecutive = 0;
-      continue;
+// The shared inner control: a search input + a corpus-annotated fuzzy list.
+// Instance-based (no module singleton) so the field editor can mount several,
+// and its lifecycle is caller-driven. The on-canvas modal wraps this with a
+// self-committing chrome; the field-provider path returns it as a live control
+// the editor commits on save (ADR-0011, kit ADR-0001).
+function createPickerBody(opts: {
+  values: string[];
+  corpus: Corpus;
+  initialValue: string;
+  isScheduler: boolean;
+  // Modal path: commit + close on selection. Inline path omits this — a
+  // selection just marks the row current; the editor commits on save.
+  onCommit?: (value: string) => void;
+}): PickerBody {
+  const { values, corpus, initialValue, isScheduler, onCommit } = opts;
+  let selectedValue = initialValue;
+  let visibleRows: HTMLElement[] = [];
+  let activeIndex = -1;
+
+  const root = document.createElement("div");
+  root.className = "si-picker";
+
+  const searchRow = document.createElement("div");
+  searchRow.className = "si-searchrow";
+  const searchEl = document.createElement("input");
+  searchEl.className = "si-search";
+  searchEl.type = "text";
+  searchEl.placeholder = isScheduler
+    ? "Fuzzy filter (e.g. 'kar', 'beta')…"
+    : "Fuzzy filter (e.g. 'dpms', 'dpm sde', '2m')…";
+  searchEl.spellcheck = false;
+  searchEl.autocomplete = "off";
+  const countEl = document.createElement("div");
+  countEl.className = "si-count";
+  searchRow.appendChild(searchEl);
+  searchRow.appendChild(countEl);
+  root.appendChild(searchRow);
+
+  const listEl = document.createElement("div");
+  listEl.className = "si-list";
+  root.appendChild(listEl);
+
+  function commitOrSelect(value: string): void {
+    if (onCommit) {
+      onCommit(value);
+      return;
     }
-    let charScore = 1;
-    if (ti === 0) {
-      charScore += 5;
-    } else {
-      const prev = t[ti - 1] as string;
-      const cur = target[ti] as string;
-      if (prev === "_" || prev === "-" || prev === " " || prev === "." || prev === "/") {
-        charScore += 4;
-      } else if (prev >= "a" && prev <= "z" && cur >= "A" && cur <= "Z") {
-        charScore += 3;
+    selectedValue = value;
+    renderRows();
+  }
+
+  function setActiveRow(rowEl: HTMLElement): void {
+    visibleRows.forEach((r, i) => {
+      if (r === rowEl) {
+        r.classList.add("si-active");
+        activeIndex = i;
+      } else {
+        r.classList.remove("si-active");
+      }
+    });
+  }
+
+  function moveActive(delta: number): void {
+    if (!visibleRows.length) return;
+    let i = activeIndex + delta;
+    if (i < 0) i = visibleRows.length - 1;
+    if (i >= visibleRows.length) i = 0;
+    visibleRows.forEach((r, j) => {
+      r.classList.toggle("si-active", j === i);
+    });
+    activeIndex = i;
+    (visibleRows[i] as HTMLElement).scrollIntoView({ block: "nearest" });
+  }
+
+  function renderRows(): void {
+    const query = searchEl.value.trim();
+    const hasFilter = !!query;
+
+    const ranked: {
+      value: string;
+      info: SamplerInfo | null;
+      score: number;
+      nameMatches: number[];
+    }[] = [];
+    for (const value of values) {
+      const info = lookup(corpus, value);
+      if (!hasFilter) {
+        ranked.push({ value, info, score: 0, nameMatches: [] });
+        continue;
+      }
+      const r = fuzzyRank(query, rankFields(value, info), NAME_WEIGHT);
+      if (r) ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches });
+    }
+    // With a filter, best match at the top; without, preserve list order
+    // (users remember "the third option in the family").
+    if (hasFilter) ranked.sort((a, b) => b.score - a.score);
+
+    listEl.innerHTML = "";
+    visibleRows = [];
+    let activeAssigned = false;
+    let shown = 0;
+    for (const { value, info, nameMatches } of ranked) {
+      const row = buildRowEl(value, info, value === selectedValue, nameMatches);
+      row.addEventListener("click", () => commitOrSelect(value));
+      row.addEventListener("mouseenter", () => setActiveRow(row));
+      listEl.appendChild(row);
+      visibleRows.push(row);
+      // Active row: with a filter, the top-scored; without, the current
+      // value (so Enter is a no-op confirm).
+      if (!activeAssigned) {
+        if (hasFilter && shown === 0) {
+          row.classList.add("si-active");
+          activeIndex = 0;
+          activeAssigned = true;
+        } else if (!hasFilter && value === selectedValue) {
+          row.classList.add("si-active");
+          activeIndex = shown;
+          activeAssigned = true;
+        }
+      }
+      shown++;
+    }
+    if (!shown) {
+      const empty = document.createElement("div");
+      empty.className = "si-empty";
+      empty.textContent = "No matches.";
+      listEl.appendChild(empty);
+      activeIndex = -1;
+    } else if (!activeAssigned) {
+      (visibleRows[0] as HTMLElement).classList.add("si-active");
+      activeIndex = 0;
+    }
+    countEl.textContent = `${shown} / ${values.length}`;
+  }
+
+  function onKeydown(e: KeyboardEvent): void {
+    switch (e.key) {
+      case "ArrowDown":
+        e.preventDefault();
+        moveActive(1);
+        return;
+      case "ArrowUp":
+        e.preventDefault();
+        moveActive(-1);
+        return;
+      case "PageDown":
+        e.preventDefault();
+        moveActive(8);
+        return;
+      case "PageUp":
+        e.preventDefault();
+        moveActive(-8);
+        return;
+      case "Enter": {
+        e.preventDefault();
+        const row = visibleRows[activeIndex];
+        if (row?.dataset.value !== undefined) commitOrSelect(row.dataset.value);
+        return;
       }
     }
-    if (ti === prevMatchIdx + 1) {
-      consecutive++;
-      charScore += consecutive * 2;
-    } else {
-      consecutive = 0;
-    }
-    score += charScore;
-    matches.push(ti);
-    prevMatchIdx = ti;
-    qi++;
-  }
 
-  if (qi < q.length) return null;
-  // Tie-break: shorter targets win
-  score -= target.length * 0.01;
-  return { score, matches };
-}
-
-export function fuzzyRank(
-  value: string,
-  info: SamplerInfo | null,
-  query: string,
-): { score: number; nameMatches: number[] } | null {
-  if (!query) return { score: 0, nameMatches: [] };
-  const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-  if (!tokens.length) return { score: 0, nameMatches: [] };
-
-  let totalScore = 0;
-  const nameMatchSet = new Set<number>();
-
-  const metaFields: string[] = info
-    ? ([
-        info.family,
-        info.summary,
-        info.good_for,
-        info.type,
-        info.year != null ? String(info.year) : null,
-        info.supersedes_by,
-      ].filter(Boolean) as string[])
-    : [];
-
-  for (const token of tokens) {
-    const nameResult = fuzzyScore(token, value);
-    let best = nameResult
-      ? { score: nameResult.score * 10, matches: nameResult.matches, onName: true }
-      : null;
-    for (const field of metaFields) {
-      const r = fuzzyScore(token, field);
-      if (r && (!best || r.score > best.score)) {
-        best = { score: r.score, matches: r.matches, onName: false };
+    // Route printable chars + Backspace into the search input even when focus
+    // has drifted off it (e.g. a click on the body whitespace).
+    if (document.activeElement === searchEl) return;
+    if (e.key === "Backspace") {
+      e.preventDefault();
+      searchEl.focus();
+      const pos = searchEl.selectionStart ?? searchEl.value.length;
+      if (pos > 0) {
+        searchEl.value = searchEl.value.slice(0, pos - 1) + searchEl.value.slice(pos);
+        searchEl.setSelectionRange(pos - 1, pos - 1);
+        renderRows();
       }
+      return;
     }
-    if (!best) return null;
-    totalScore += best.score;
-    if (best.onName) {
-      for (const i of best.matches) nameMatchSet.add(i);
+    const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
+    if (isPrintable) {
+      e.preventDefault();
+      searchEl.focus();
+      const pos = searchEl.selectionStart ?? searchEl.value.length;
+      searchEl.value = searchEl.value.slice(0, pos) + e.key + searchEl.value.slice(pos);
+      searchEl.setSelectionRange(pos + 1, pos + 1);
+      renderRows();
     }
   }
 
-  return { score: totalScore, nameMatches: [...nameMatchSet].sort((a, b) => a - b) };
+  searchEl.addEventListener("input", renderRows);
+  root.addEventListener("keydown", onKeydown);
+
+  renderRows();
+
+  return {
+    el: root,
+    searchEl,
+    getValue: () => selectedValue,
+    focus: () => searchEl.focus(),
+    destroy: () => {
+      root.removeEventListener("keydown", onKeydown);
+      searchEl.removeEventListener("input", renderRows);
+      root.remove();
+    },
+  };
 }
 
-function renderRows(): void {
-  if (!PICKER_STATE) return;
-  const { listEl, countEl, values, corpus, currentValue, searchEl } = PICKER_STATE;
-  const query = searchEl.value.trim();
-  const hasFilter = !!query;
-
-  // Rank + filter.
-  const ranked: {
-    value: string;
-    info: SamplerInfo | null;
-    score: number;
-    nameMatches: number[];
-  }[] = [];
-  for (const value of values) {
-    const info = lookup(corpus, value);
-    if (!hasFilter) {
-      ranked.push({ value, info, score: 0, nameMatches: [] });
-      continue;
-    }
-    const r = fuzzyRank(value, info, query);
-    if (r) ranked.push({ value, info, score: r.score, nameMatches: r.nameMatches });
-  }
-  // When filtering, sort by score descending so the best match is at the
-  // top. Without a filter, preserve the original list order — users
-  // remember "the third option in the family".
-  if (hasFilter) ranked.sort((a, b) => b.score - a.score);
-
-  listEl.innerHTML = "";
-  PICKER_STATE.visibleRows = [];
-  let activeAssigned = false;
-  let shown = 0;
-  for (const { value, info, nameMatches } of ranked) {
-    const row = buildRowEl(value, info, value === currentValue, nameMatches);
-    row.addEventListener("click", () => selectAndClose(value));
-    row.addEventListener("mouseenter", () => setActiveRow(row));
-    listEl.appendChild(row);
-    PICKER_STATE.visibleRows.push(row);
-    // Active row: with a filter, always the top-scored. Without, the
-    // current value if visible (so Enter is a no-op confirm).
-    if (!activeAssigned) {
-      if (hasFilter && shown === 0) {
-        row.classList.add("si-active");
-        PICKER_STATE.activeIndex = 0;
-        activeAssigned = true;
-      } else if (!hasFilter && value === currentValue) {
-        row.classList.add("si-active");
-        PICKER_STATE.activeIndex = shown;
-        activeAssigned = true;
-      }
-    }
-    shown++;
-  }
-  if (!shown) {
-    const empty = document.createElement("div");
-    empty.className = "si-empty";
-    empty.textContent = "No matches.";
-    listEl.appendChild(empty);
-    PICKER_STATE.activeIndex = -1;
-  } else if (!activeAssigned) {
-    (PICKER_STATE.visibleRows[0] as HTMLElement).classList.add("si-active");
-    PICKER_STATE.activeIndex = 0;
-  }
-  countEl.textContent = `${shown} / ${values.length}`;
+// Center the active row (the current value) so the list opens with the
+// existing selection mid-viewport, not at the top — long lists (110+
+// samplers) would otherwise hide the selection far below the fold.
+function centerActiveRow(listEl: HTMLElement): void {
+  const active = listEl.querySelector<HTMLElement>(".si-row.si-active");
+  active?.scrollIntoView({ block: "center" });
 }
 
-function setActiveRow(rowEl: HTMLElement): void {
-  if (!PICKER_STATE) return;
-  PICKER_STATE.visibleRows.forEach((r, i) => {
-    if (r === rowEl) {
-      r.classList.add("si-active");
-      if (PICKER_STATE) PICKER_STATE.activeIndex = i;
-    } else {
-      r.classList.remove("si-active");
-    }
-  });
-}
+// ============================================================
+// Option B: on-canvas modal picker
+// ============================================================
 
-function moveActive(delta: number): void {
-  if (!PICKER_STATE) return;
-  const rows = PICKER_STATE.visibleRows;
-  if (!rows.length) return;
-  let i = PICKER_STATE.activeIndex + delta;
-  if (i < 0) i = rows.length - 1;
-  if (i >= rows.length) i = 0;
-  rows.forEach((r, j) => {
-    r.classList.toggle("si-active", j === i);
-  });
-  PICKER_STATE.activeIndex = i;
-  (rows[i] as HTMLElement).scrollIntoView({ block: "nearest" });
-}
-
-function selectAndClose(value: string): void {
-  if (!PICKER_STATE) return;
-  const { widget, node } = PICKER_STATE;
-  dismissPicker();
+function commitWidgetValue(widget: PatchedWidget, node: SamplerNode | null, value: string): void {
   widget.value = value;
   try {
     widget.callback?.call(widget, value, app.canvas, node);
@@ -783,74 +829,10 @@ function selectAndClose(value: string): void {
   app.graph?.setDirtyCanvas?.(true, true);
 }
 
-function onPickerKeydown(e: KeyboardEvent): void {
-  if (!PICKER_STATE) return;
-
-  // Navigation keys: always handled, regardless of where focus lives.
-  switch (e.key) {
-    case "Escape":
-      e.preventDefault();
-      e.stopPropagation();
-      dismissPicker();
-      return;
-    case "ArrowDown":
-      e.preventDefault();
-      moveActive(1);
-      return;
-    case "ArrowUp":
-      e.preventDefault();
-      moveActive(-1);
-      return;
-    case "PageDown":
-      e.preventDefault();
-      moveActive(8);
-      return;
-    case "PageUp":
-      e.preventDefault();
-      moveActive(-8);
-      return;
-    case "Enter": {
-      e.preventDefault();
-      const i = PICKER_STATE.activeIndex;
-      const row = PICKER_STATE.visibleRows[i];
-      if (row?.dataset.value !== undefined) selectAndClose(row.dataset.value);
-      return;
-    }
-  }
-
-  // Route printable chars and Backspace into the search input even when
-  // focus has drifted away (e.g. user clicked the dialog whitespace).
-  if (document.activeElement === PICKER_STATE.searchEl) return;
-
-  const el = PICKER_STATE.searchEl;
-  if (e.key === "Backspace") {
-    e.preventDefault();
-    el.focus();
-    const pos = el.selectionStart ?? el.value.length;
-    if (pos > 0) {
-      el.value = el.value.slice(0, pos - 1) + el.value.slice(pos);
-      el.setSelectionRange(pos - 1, pos - 1);
-      renderRows();
-    }
-    return;
-  }
-  const isPrintable = e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey;
-  if (isPrintable) {
-    e.preventDefault();
-    el.focus();
-    const pos = el.selectionStart ?? el.value.length;
-    el.value = el.value.slice(0, pos) + e.key + el.value.slice(pos);
-    el.setSelectionRange(pos + 1, pos + 1);
-    renderRows();
-  }
-}
-
 function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
   ensureStyle();
-  dismissPicker();
-  const values = getWidgetValues(widget);
+  const values = resolveComboValues(widget.options?.values, widget, app.canvas?.current_node);
   if (!values.length) return;
-  const corpus = widgetCorpus(widget);
   const isScheduler = isSchedulerWidget(widget);
 
   const backdrop = document.createElement("div");
@@ -860,17 +842,10 @@ function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
   // full-viewport backdrop and would immediately re-close the picker.
   // Pointerdown isn't synthesized post-touchend, so it stays inert until
   // the user actually taps outside again.
-  backdrop.addEventListener("pointerdown", dismissPicker);
+  backdrop.addEventListener("pointerdown", () => dismissActiveModal());
 
   const dialog = document.createElement("div");
   dialog.id = DIALOG_ID;
-  dialog.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const t = e.target as HTMLElement;
-    if (t.tagName !== "INPUT" && t.tagName !== "BUTTON" && !t.closest?.(".si-row")) {
-      PICKER_STATE?.searchEl?.focus();
-    }
-  });
 
   // Header
   const header = document.createElement("div");
@@ -886,32 +861,31 @@ function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
   closeBtn.className = "si-close";
   closeBtn.textContent = "×";
   closeBtn.title = "Close (Esc)";
-  closeBtn.addEventListener("click", dismissPicker);
+  closeBtn.addEventListener("click", () => dismissActiveModal());
   header.appendChild(title);
   header.appendChild(closeBtn);
   dialog.appendChild(header);
 
-  // Search
-  const searchRow = document.createElement("div");
-  searchRow.className = "si-searchrow";
-  const searchEl = document.createElement("input");
-  searchEl.className = "si-search";
-  searchEl.type = "text";
-  searchEl.placeholder = isScheduler
-    ? "Fuzzy filter (e.g. 'kar', 'beta')…"
-    : "Fuzzy filter (e.g. 'dpms', 'dpm sde', '2m')…";
-  searchEl.spellcheck = false;
-  searchEl.autocomplete = "off";
-  const countEl = document.createElement("div");
-  countEl.className = "si-count";
-  searchRow.appendChild(searchEl);
-  searchRow.appendChild(countEl);
-  dialog.appendChild(searchRow);
-
-  // List
-  const listEl = document.createElement("div");
-  listEl.className = "si-list";
-  dialog.appendChild(listEl);
+  const body = createPickerBody({
+    values,
+    corpus: widgetCorpus(widget),
+    initialValue: String(widget.value),
+    isScheduler,
+    onCommit: (value) => {
+      dismissActiveModal();
+      commitWidgetValue(widget, node, value);
+    },
+  });
+  dialog.appendChild(body.el);
+  // Clicking dialog whitespace refocuses the search so type-to-filter keeps
+  // working (the picker body listens for keydown on its own root).
+  dialog.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const t = e.target as HTMLElement;
+    if (t.tagName !== "INPUT" && t.tagName !== "BUTTON" && !t.closest?.(".si-row")) {
+      body.searchEl.focus();
+    }
+  });
 
   // Footer
   const footer = document.createElement("div");
@@ -925,34 +899,68 @@ function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
   footer.appendChild(hintR);
   dialog.appendChild(footer);
 
+  function closePicker(): void {
+    document.removeEventListener("keydown", onEscape, true);
+    body.destroy();
+    backdrop.remove();
+    dialog.remove();
+  }
+
+  function onEscape(e: KeyboardEvent): void {
+    if (e.key === "Escape") {
+      e.preventDefault();
+      e.stopPropagation();
+      dismissActiveModal();
+    }
+  }
+
   document.body.appendChild(backdrop);
   document.body.appendChild(dialog);
+  document.addEventListener("keydown", onEscape, true);
 
-  PICKER_STATE = {
-    widget,
-    node,
-    values,
-    corpus,
-    currentValue: String(widget.value),
-    listEl,
-    countEl,
-    searchEl,
-    visibleRows: [],
-    activeIndex: -1,
-  };
+  // Register as the single active modal (kit coordinator) — dismisses any
+  // sibling pack's modal first, and lets gesture packs see isModalActive().
+  setActiveModal({ id: EXT_NAME, element: dialog, close: closePicker });
 
-  searchEl.addEventListener("input", renderRows);
-  document.addEventListener("keydown", onPickerKeydown, true);
-
-  renderRows();
-  // Center the active row (the current value) so the picker opens with the
-  // user's existing selection in the middle of the visible list, not at the
-  // top — long lists (110+ samplers) would otherwise hide the selection
-  // far below the fold.
-  const activeRow = PICKER_STATE.visibleRows[PICKER_STATE.activeIndex];
-  if (activeRow) activeRow.scrollIntoView({ block: "center" });
-  searchEl.focus();
+  centerActiveRow(body.el);
+  body.focus();
 }
+
+// ============================================================
+// Option C: comfy-modal-kit field provider
+// ============================================================
+
+// Register the corpus-annotated fuzzy list as a cross-pack field provider so
+// consumers of the shared registry (comfyui-prompt-editor) mount it inline in
+// place of the built-in <select>. Additive: consumers that don't resolve a
+// provider fall back to their native control; if this pack isn't installed it
+// never registers. See ADR-0011 and kit ADR-0001.
+registerFieldProvider({
+  id: EXT_NAME,
+  priority: 10,
+  match: (widget) =>
+    typeof widget?.name === "string" &&
+    (SAMPLER_WIDGET_NAMES.has(widget.name) || SCHEDULER_WIDGET_NAMES.has(widget.name)),
+  create: ({ widget, node, initialValue }) => {
+    ensureStyle();
+    const isScheduler = isSchedulerName(widget?.name);
+    const values = resolveComboValues(widget?.options?.values, widget, node);
+    const initialStr = String(initialValue ?? widget?.value ?? "");
+    const body = createPickerBody({
+      values,
+      corpus: isScheduler ? SCHEDULERS : SAMPLERS,
+      initialValue: initialStr,
+      isScheduler,
+    });
+    return {
+      el: body.el,
+      getValue: () => body.getValue(),
+      hasChanged: () => body.getValue() !== initialStr,
+      focus: () => body.focus(),
+      destroy: () => body.destroy(),
+    };
+  },
+});
 
 // ============================================================
 // Wiring
@@ -985,25 +993,17 @@ function enhanceNode(node: SamplerNode): void {
       refreshWidgetTooltip(w);
     }
 
-    // Option B: click intercept. The modern ComfyUI frontend calls
-    // widget.onPointerDown(pointer, node, canvas) before its own
-    // dropdown logic — returning truthy consumes the event.
+    // Option B: click intercept via the kit's chain-then-consume coordinator.
+    // patchWidgetPointer chains the original handler, honors its consumed
+    // return, and falls back to the native control on error. The isModalActive
+    // guard keeps us from stacking a second modal.
     if (!w._samplerInfoPointerPatched) {
       w._samplerInfoPointerPatched = true;
-      const origDown = w.onPointerDown;
-      w.onPointerDown = function (
-        this: PatchedWidget,
-        pointer: unknown,
-        ownerNode: SamplerNode,
-        canvas: SamplerCanvas,
-      ): boolean | undefined {
-        if (typeof origDown === "function") {
-          const consumed = origDown.call(this, pointer, ownerNode, canvas);
-          if (consumed) return consumed;
-        }
-        openPicker(w, ownerNode || node);
+      patchWidgetPointer(w as unknown as PointerPatchableWidget, (_pointer, ownerNode) => {
+        if (isModalActive()) return false;
+        openPicker(w, (ownerNode as SamplerNode) || node);
         return true;
-      };
+      });
     }
   }
 }
