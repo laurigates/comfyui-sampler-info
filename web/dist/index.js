@@ -183,6 +183,219 @@ function highlightMatches(target, matchIndices) {
   }
   return frag;
 }
+var STYLE_ID = "cmn-notify-style";
+var CONTAINER_ID = "cmn-notify-container";
+function defaultLife(severity) {
+  switch (severity) {
+    case "error":
+      return 0;
+    case "warn":
+      return 8000;
+    default:
+      return 4000;
+  }
+}
+function defaultCopyable(severity) {
+  return severity === "error" || severity === "warn";
+}
+function notifyClipboardText(summary, detail) {
+  return detail ? `${summary}
+${detail}` : summary;
+}
+async function copyTextToClipboard(text) {
+  try {
+    if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {}
+  try {
+    if (typeof document === "undefined")
+      return false;
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.setAttribute("readonly", "");
+    ta.style.position = "fixed";
+    ta.style.top = "-1000px";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand("copy");
+    ta.remove();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+var CSS = `
+.cmn-container {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: min(380px, calc(100vw - 24px));
+    pointer-events: none;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+.cmn-toast {
+    pointer-events: auto;
+    background: #1a1a1f;
+    color: #e8e8ea;
+    border: 1px solid #3a3a44;
+    border-left-width: 4px;
+    border-radius: 8px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6);
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 13px;
+    line-height: 1.4;
+    animation: cmn-in 0.16s ease-out;
+}
+@keyframes cmn-in {
+    from { transform: translateY(-8px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+.cmn-toast.cmn-success { border-left-color: #4caf50; }
+.cmn-toast.cmn-info    { border-left-color: #6ba6ff; }
+.cmn-toast.cmn-warn    { border-left-color: #e0a83a; }
+.cmn-toast.cmn-error   { border-left-color: #e0533a; }
+.cmn-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+}
+.cmn-text {
+    flex: 1;
+    min-width: 0;
+    word-break: break-word;
+}
+.cmn-summary { font-weight: 600; }
+.cmn-detail  { color: #b8b8c0; margin-top: 2px; white-space: pre-wrap; }
+.cmn-close {
+    background: transparent;
+    color: #aaa;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+}
+.cmn-close:hover { color: #fff; }
+.cmn-actions { display: flex; gap: 8px; }
+.cmn-copy {
+    background: #2a2a36;
+    color: #d8d8e0;
+    border: 1px solid #3a3a44;
+    border-radius: 5px;
+    /* Touch-first: comfortable tap target, 13px text. */
+    min-height: 32px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 13px;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.cmn-copy:hover  { background: #34343f; color: #fff; }
+.cmn-copy.cmn-copied { background: #2f4a30; border-color: #4caf50; color: #cfe8d0; }
+`;
+function ensureStyle() {
+  if (typeof document === "undefined")
+    return;
+  if (document.getElementById(STYLE_ID))
+    return;
+  const s = document.createElement("style");
+  s.id = STYLE_ID;
+  s.textContent = CSS;
+  document.head.appendChild(s);
+}
+function ensureContainer() {
+  let c = document.getElementById(CONTAINER_ID);
+  if (!c) {
+    c = document.createElement("div");
+    c.id = CONTAINER_ID;
+    c.className = "cmn-container";
+    document.body.appendChild(c);
+  }
+  return c;
+}
+function notify(opts) {
+  const { severity, summary, detail } = opts;
+  if (typeof document === "undefined" || !document.body) {
+    console.info(`[notify] ${severity}: ${summary}${detail ? ` — ${detail}` : ""}`);
+    return null;
+  }
+  ensureStyle();
+  const container = ensureContainer();
+  const life = opts.life ?? defaultLife(severity);
+  const copyable = opts.copyable ?? defaultCopyable(severity);
+  const toast = document.createElement("div");
+  toast.className = `cmn-toast cmn-${severity}`;
+  toast.setAttribute("role", severity === "error" ? "alert" : "status");
+  let timer;
+  const close = () => {
+    if (timer)
+      clearTimeout(timer);
+    toast.remove();
+    if (container.childElementCount === 0)
+      container.remove();
+  };
+  const row = document.createElement("div");
+  row.className = "cmn-row";
+  const text = document.createElement("div");
+  text.className = "cmn-text";
+  const summaryEl = document.createElement("div");
+  summaryEl.className = "cmn-summary";
+  summaryEl.textContent = summary;
+  text.appendChild(summaryEl);
+  if (detail) {
+    const detailEl = document.createElement("div");
+    detailEl.className = "cmn-detail";
+    detailEl.textContent = detail;
+    text.appendChild(detailEl);
+  }
+  const closeBtn = document.createElement("button");
+  closeBtn.className = "cmn-close";
+  closeBtn.type = "button";
+  closeBtn.textContent = "×";
+  closeBtn.title = "Dismiss";
+  closeBtn.addEventListener("click", close);
+  row.append(text, closeBtn);
+  toast.appendChild(row);
+  if (copyable) {
+    const actions = document.createElement("div");
+    actions.className = "cmn-actions";
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "cmn-copy";
+    copyBtn.type = "button";
+    copyBtn.textContent = "Copy";
+    copyBtn.addEventListener("click", async () => {
+      const ok = await copyTextToClipboard(notifyClipboardText(summary, detail));
+      copyBtn.textContent = ok ? "Copied ✓" : "Copy failed";
+      copyBtn.classList.toggle("cmn-copied", ok);
+      setTimeout(() => {
+        copyBtn.textContent = "Copy";
+        copyBtn.classList.remove("cmn-copied");
+      }, 1500);
+    });
+    actions.appendChild(copyBtn);
+    toast.appendChild(actions);
+  }
+  container.appendChild(toast);
+  if (life > 0) {
+    timer = setTimeout(close, life);
+  }
+  return { close, el: toast };
+}
 
 // src/index.ts
 import { app } from "/scripts/app.js";
@@ -190,7 +403,7 @@ var EXT_NAME = "comfyui-sampler-info";
 var DATA_BASE = `/extensions/${EXT_NAME}/data`;
 var SAMPLER_WIDGET_NAMES = new Set(["sampler_name", "sampler"]);
 var SCHEDULER_WIDGET_NAMES = new Set(["scheduler"]);
-var STYLE_ID = "sampler-info-style";
+var STYLE_ID2 = "sampler-info-style";
 var DIALOG_ID = "sampler-info-dialog";
 var NAME_WEIGHT = 10;
 var SAMPLERS = { exact: {}, prefix: [], alias: {} };
@@ -207,6 +420,11 @@ async function loadCorpus() {
     CORPUS_LOADED = true;
   } catch (e) {
     console.warn(`[${EXT_NAME}] corpus load failed:`, e);
+    notify({
+      severity: "warn",
+      summary: "Sampler-info corpus failed to load",
+      detail: String(e)
+    });
   }
 }
 function compileCorpus(raw) {
@@ -304,7 +522,7 @@ function refreshWidgetTooltip(widget) {
   widget.options.tooltip = tip;
   widget.tooltip = tip;
 }
-var CSS = `
+var CSS2 = `
 #${DIALOG_ID}-backdrop {
     position: fixed;
     inset: 0;
@@ -526,12 +744,12 @@ var CSS = `
     color: #b8b8c0;
 }
 `;
-function ensureStyle() {
-  if (document.getElementById(STYLE_ID))
+function ensureStyle2() {
+  if (document.getElementById(STYLE_ID2))
     return;
   const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = CSS;
+  style.id = STYLE_ID2;
+  style.textContent = CSS2;
   document.head.appendChild(style);
 }
 function resolveComboValues(rawValues, widget, node) {
@@ -813,12 +1031,14 @@ function commitWidgetValue(widget, node, value) {
   }
   try {
     refreshWidgetTooltip(widget);
-  } catch (_e) {}
+  } catch (e) {
+    console.warn(`[${EXT_NAME}] tooltip refresh failed after commit`, e);
+  }
   node?.setDirtyCanvas?.(true, true);
   app.graph?.setDirtyCanvas?.(true, true);
 }
 function openPicker(widget, node) {
-  ensureStyle();
+  ensureStyle2();
   const values = resolveComboValues(widget.options?.values, widget, app.canvas?.current_node);
   if (!values.length)
     return;
@@ -897,7 +1117,7 @@ registerFieldProvider({
   priority: 10,
   match: (widget) => typeof widget?.name === "string" && (SAMPLER_WIDGET_NAMES.has(widget.name) || SCHEDULER_WIDGET_NAMES.has(widget.name)),
   create: ({ widget, node, initialValue }) => {
-    ensureStyle();
+    ensureStyle2();
     const isScheduler = isSchedulerName(widget?.name);
     const values = resolveComboValues(widget?.options?.values, widget, node);
     const initialStr = String(initialValue ?? widget?.value ?? "");

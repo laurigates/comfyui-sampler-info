@@ -59,7 +59,8 @@ Two additive enhancements on combo widgets named `sampler_name` /
 | `pyproject.toml` | Comfy Registry metadata. `PublisherId` + `[tool.comfy] includes`. |
 | `.github/workflows/publish.yml` | Builds the frontend, then auto-publishes on `pyproject.toml` version bump. |
 | `.github/workflows/ci.yml` | CI: lint, format, typecheck+build, test, and security checks on push/PR. |
-| `.github/dependabot.yml` | Automated dependency update PRs. |
+| `renovate.json` | Renovate config — automated dependency update PRs. |
+| `.github/workflows/renovate.yml` | Renovate runner workflow. |
 | `.pre-commit-config.yaml` | Pre-commit hooks: ruff, biome, gitleaks, JSON validation. |
 | `biome.json` | Biome (TS/JS/JSON) linter + formatter config. |
 | `package.json` | Dev toolchain — `bun build`, `tsc`, Vitest, Biome, knip. |

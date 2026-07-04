@@ -3,6 +3,7 @@ import {
   fuzzyRank,
   highlightMatches,
   isModalActive,
+  notify,
   type PointerPatchableWidget,
   patchWidgetPointer,
   registerFieldProvider,
@@ -135,7 +136,15 @@ async function loadCorpus(): Promise<void> {
     SCHEDULERS = compileCorpus(sc);
     CORPUS_LOADED = true;
   } catch (e) {
+    // A total corpus-load failure makes the whole pack inert (no tooltips, no
+    // picker metadata). Surface it as a copyable popup, keeping console.warn as
+    // the devtools trail.
     console.warn(`[${EXT_NAME}] corpus load failed:`, e);
+    notify({
+      severity: "warn",
+      summary: "Sampler-info corpus failed to load",
+      detail: String(e),
+    });
   }
 }
 
@@ -822,8 +831,8 @@ function commitWidgetValue(widget: PatchedWidget, node: SamplerNode | null, valu
   }
   try {
     refreshWidgetTooltip(widget);
-  } catch (_e) {
-    /* ignored */
+  } catch (e) {
+    console.warn(`[${EXT_NAME}] tooltip refresh failed after commit`, e);
   }
   node?.setDirtyCanvas?.(true, true);
   app.graph?.setDirtyCanvas?.(true, true);
