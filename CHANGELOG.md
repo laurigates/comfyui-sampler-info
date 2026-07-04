@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.12](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.11...comfyui-sampler-info-v0.1.12) (2026-07-04)
+
+
+### Bug Fixes
+
+* **instrumentation:** log tooltip-refresh catch, notify on corpus load failure ([#67](https://github.com/laurigates/comfyui-sampler-info/issues/67)) ([0f16009](https://github.com/laurigates/comfyui-sampler-info/commit/0f160092a94fe60fe7abc1cbb30c182f7175b55f))
+
 ## [0.1.11](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.10...comfyui-sampler-info-v0.1.11) (2026-07-02)
 
 
