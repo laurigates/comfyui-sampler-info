@@ -1,5 +1,6 @@
 import {
   dismissActiveModal,
+  ensureStyleOnce,
   fuzzyRank,
   highlightMatches,
   isModalActive,
@@ -472,14 +473,6 @@ const CSS = `
 }
 `;
 
-function ensureStyle(): void {
-  if (document.getElementById(STYLE_ID)) return;
-  const style = document.createElement("style");
-  style.id = STYLE_ID;
-  style.textContent = CSS;
-  document.head.appendChild(style);
-}
-
 // The combo choices for a widget. `options.values` can be a static array or a
 // function `(widget, node) => string[]` (LiteGraph's dynamic-combo form).
 function resolveComboValues(rawValues: unknown, widget: unknown, node: unknown): string[] {
@@ -839,7 +832,7 @@ function commitWidgetValue(widget: PatchedWidget, node: SamplerNode | null, valu
 }
 
 function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
-  ensureStyle();
+  ensureStyleOnce(STYLE_ID, CSS);
   const values = resolveComboValues(widget.options?.values, widget, app.canvas?.current_node);
   if (!values.length) return;
   const isScheduler = isSchedulerWidget(widget);
@@ -945,13 +938,14 @@ function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
 // provider fall back to their native control; if this pack isn't installed it
 // never registers. See ADR-0011 and kit ADR-0001.
 registerFieldProvider({
-  id: EXT_NAME,
+  // Family convention: provider ids are "<pack-short-name>:<field>" (kit ADR-0002).
+  id: "sampler-info:combo",
   priority: 10,
   match: (widget) =>
     typeof widget?.name === "string" &&
     (SAMPLER_WIDGET_NAMES.has(widget.name) || SCHEDULER_WIDGET_NAMES.has(widget.name)),
   create: ({ widget, node, initialValue }) => {
-    ensureStyle();
+    ensureStyleOnce(STYLE_ID, CSS);
     const isScheduler = isSchedulerName(widget?.name);
     const values = resolveComboValues(widget?.options?.values, widget, node);
     const initialStr = String(initialValue ?? widget?.value ?? "");
