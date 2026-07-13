@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.14](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.13...comfyui-sampler-info-v0.1.14) (2026-07-13)
+
+
+### Features
+
+* **corpus:** cover Krea 2 (Turbo) in the euler/simple guidance ([#75](https://github.com/laurigates/comfyui-sampler-info/issues/75)) ([1cac9d2](https://github.com/laurigates/comfyui-sampler-info/commit/1cac9d239ba49008df7226819ae7c5f4acd78e38))
+
 ## [0.1.13](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.12...comfyui-sampler-info-v0.1.13) (2026-07-13)
 
 
