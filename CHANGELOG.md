@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.15](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.14...comfyui-sampler-info-v0.1.15) (2026-07-13)
+
+
+### Features
+
+* **corpus:** pair euler_ancestral_cfg_pp with beta57 / linear_quadratic ([#77](https://github.com/laurigates/comfyui-sampler-info/issues/77)) ([bca41e9](https://github.com/laurigates/comfyui-sampler-info/commit/bca41e99b044d52c832d078db91c06aadde3ee2f))
+
 ## [0.1.14](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.13...comfyui-sampler-info-v0.1.14) (2026-07-13)
 
 
