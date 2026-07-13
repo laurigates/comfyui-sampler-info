@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.13](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.12...comfyui-sampler-info-v0.1.13) (2026-07-13)
+
+
+### Features
+
+* **corpus:** add beta57 scheduler and modernize model guidance ([#72](https://github.com/laurigates/comfyui-sampler-info/issues/72)) ([fff48b1](https://github.com/laurigates/comfyui-sampler-info/commit/fff48b1cfdb1ff2575b66be840c2e9537c41c6a5))
+* **picker:** highlight and prioritize schedulers/samplers that pair well ([#74](https://github.com/laurigates/comfyui-sampler-info/issues/74)) ([12d292d](https://github.com/laurigates/comfyui-sampler-info/commit/12d292d2082e4046b72f35506f4b47f880cfdc47))
+
+
+### Bug Fixes
+
+* **picker:** don't nest a scroll container when mounted inline ([#71](https://github.com/laurigates/comfyui-sampler-info/issues/71)) ([d1575b7](https://github.com/laurigates/comfyui-sampler-info/commit/d1575b79d8d45e2a79715af0285eafe448d138db))
+
 ## [0.1.12](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.11...comfyui-sampler-info-v0.1.12) (2026-07-04)
 
 
