@@ -7,18 +7,18 @@
   "exact": {
     "simple": {
       "year": 2022,
-      "summary": "Naive equally-spaced sigma schedule. The plainest scheduler — used for testing or with samplers that bring their own pacing.",
-      "good_for": "Useful when a sampler brings its own pacing (dpm_adaptive, dpm_fast) or as a reference baseline; most general-purpose workflows benefit from karras or sgm_uniform instead"
+      "summary": "Naive equally-spaced sigma schedule. The plainest scheduler — used with samplers that bring their own pacing, and the reference schedule for recent rectified-flow models.",
+      "good_for": "The standard pick on recent rectified-flow models — euler + simple is the reference setup for the distilled FLUX.2 Klein (4-8 steps, CFG 1-2) and for Qwen-Image-Edit 2511. Also useful when a sampler brings its own pacing (dpm_adaptive, dpm_fast). On eps/v-prediction models (SD1.5, SDXL) karras or sgm_uniform usually beat it"
     },
     "normal": {
       "year": 2022,
       "summary": "Standard scheduler matching the model's training noise schedule. Conservative default.",
-      "good_for": "Safe starting point that matches the model's training; a fine first pick before trying karras or sgm_uniform"
+      "good_for": "Safe starting point that matches the model's training, whatever the architecture; a fine first pick before trying karras or sgm_uniform on eps/v-prediction models, and a common alternative to simple with euler on the FLUX family (including the base FLUX.2 Klein 9B at 20-24 steps, CFG 3.5-5)"
     },
     "karras": {
       "year": 2022,
-      "summary": "Karras EDM noise schedule (Karras et al, 'Elucidating the Design Space of Diffusion-Based Generative Models'). Most popular general-purpose schedule for SD1.5 and SDXL.",
-      "good_for": "Default workhorse for dpmpp_2m, dpmpp_2m_sde, euler, heun"
+      "summary": "Karras EDM noise schedule (Karras et al, 'Elucidating the Design Space of Diffusion-Based Generative Models'). The most popular general-purpose schedule for eps/v-prediction models (SD1.5, SDXL).",
+      "good_for": "Default workhorse for dpmpp_2m, dpmpp_2m_sde, euler, heun on SD1.5/SDXL; still a good pairing with dpmpp_2m on Qwen-Image-Edit 2511 when not using the Lightning LoRA. Recent rectified-flow models more often want simple, normal or beta"
     },
     "exponential": {
       "year": 2022,
@@ -38,7 +38,7 @@
     "beta": {
       "year": 2024,
       "summary": "Beta-distribution spaced schedule. Concentrates steps where the model needs them most.",
-      "good_for": "When karras/exponential look off; experimental alternative"
+      "good_for": "A common pick on recent rectified-flow models such as the FLUX family (e.g. euler, dpmpp_2m or ipndm on FLUX.1 Krea dev); on SD1.5/SDXL, reach for it when karras/exponential look off"
     },
     "linear_quadratic": {
       "year": 2024,
@@ -53,7 +53,14 @@
     "bong_tangent": {
       "year": 2024,
       "summary": "RES4LYF custom schedule using a tangent-based pacing curve. Tuned for the RES4LYF RK sampler family.",
-      "good_for": "Pair with RES4LYF samplers (res_Ns, rk_*, lawson_*, etc.)"
+      "good_for": "Pair with RES4LYF samplers (res_Ns, rk_*, lawson_*, etc.); also a well-liked pairing with dpmpp_2m on FLUX.1 Krea dev",
+      "notes": "Ships with the RES4LYF custom-node pack, not ComfyUI core — it only appears in the scheduler list when that pack is installed."
+    },
+    "beta57": {
+      "year": null,
+      "summary": "The beta schedule at alpha=0.5 / beta=0.7 — beta-distribution sigma spacing preset, biased toward spending steps where these models need them rather than at the extremes.",
+      "good_for": "Recent rectified-flow models such as FLUX and Qwen-Image; strong with euler, dpmpp_2m and ipndm (a common pick on FLUX.1 Krea dev alongside beta)",
+      "notes": "Ships with the RES4LYF custom-node pack, not ComfyUI core — it is absent from core's SCHEDULER_HANDLERS and only appears in the scheduler list when that pack is installed."
     },
 
     "unipc": {

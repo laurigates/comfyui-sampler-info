@@ -11,9 +11,9 @@
       "family": "Euler",
       "order": 1,
       "type": "deterministic",
-      "summary": "Simplest first-order ODE solver. The baseline — fast, predictable, slightly soft.",
-      "good_for": "Quick previews, anime, conservative low-step counts (10-20)",
-      "pairs_with": ["normal", "simple", "karras"]
+      "summary": "Simplest first-order ODE solver. The baseline — fast, predictable, slightly soft. Also the default on recent rectified-flow / flow-matching models, whose straighter trajectory makes a first-order solver competitive.",
+      "good_for": "The reference sampler on recent rectified-flow models: FLUX.2 Klein with simple/normal (distilled, 4-8 steps at CFG 1-2; the base 9B wants 20-24 steps at CFG 3.5-5) and Qwen-Image-Edit 2511 with simple. On SD1.5/SDXL: quick previews, anime, conservative low-step counts (10-20)",
+      "pairs_with": ["normal", "simple", "karras", "beta", "beta57"]
     },
     "euler_cfg_pp": {
       "year": 2024,
@@ -170,9 +170,9 @@
       "family": "DPM-Solver++",
       "order": 2,
       "type": "deterministic multistep",
-      "summary": "The default workhorse. Order-2 multistep — reuses prior model evaluations, so very efficient. Converges well at 15-25 steps for most checkpoints.",
-      "good_for": "General-purpose, SD1.5 / SDXL / Flux",
-      "pairs_with": ["karras", "exponential", "sgm_uniform"]
+      "summary": "The default workhorse. Order-2 multistep — reuses prior model evaluations, so very efficient. Converges well at 15-25 steps for most checkpoints, across both eps/v-prediction and rectified-flow architectures.",
+      "good_for": "General-purpose across architectures: SD1.5/SDXL with karras, and recent rectified-flow models such as FLUX and Qwen-Image — FLUX.1 Krea dev with bong_tangent (or beta/beta57), Qwen-Image-Edit 2511 with karras when not using the Lightning LoRA",
+      "pairs_with": ["karras", "exponential", "sgm_uniform", "beta", "beta57", "bong_tangent"]
     },
     "dpmpp_2m_cfg_pp": {
       "year": 2024,
@@ -189,7 +189,7 @@
       "order": 2,
       "type": "stochastic multistep (SDE)",
       "summary": "dpmpp_2m with stochastic noise injection. Often best-in-class quality at 20-30 steps for SDXL.",
-      "good_for": "Quality SDXL/SD1.5 runs at 20-30 steps",
+      "good_for": "Quality SDXL/SD1.5 runs at 20-30 steps; SDE variants are less common on recent rectified-flow models such as FLUX and Qwen-Image, where the deterministic euler / dpmpp_2m pairings dominate",
       "pairs_with": ["karras", "exponential"]
     },
     "dpmpp_2m_sde_gpu": {
@@ -264,8 +264,8 @@
       "order": "variable",
       "type": "deterministic multistep",
       "summary": "Improved Pseudo-Numerical Diffusion Methods. Valid alternative to dpmpp_2m; less popular.",
-      "good_for": "Worth a try when dpmpp_2m's character doesn't suit a style; same convergence class with subtly different behavior",
-      "pairs_with": ["karras"]
+      "good_for": "Worth a try when dpmpp_2m's character doesn't suit a style; same convergence class with subtly different behavior. Holds up well on recent rectified-flow models such as FLUX (e.g. FLUX.1 Krea dev with beta or beta57)",
+      "pairs_with": ["karras", "beta", "beta57"]
     },
     "ipndm_v": {
       "year": 2023,
@@ -292,8 +292,8 @@
       "order": 2,
       "type": "deterministic multistep",
       "summary": "RES family (Hochbruck-Ostermann exponential RK), multistep. Recent core addition.",
-      "good_for": "Alternative to dpmpp_2m worth trying for SDXL/Flux",
-      "pairs_with": ["karras", "exponential"]
+      "good_for": "Alternative to dpmpp_2m worth trying on SDXL and on recent rectified-flow models such as the FLUX family",
+      "pairs_with": ["karras", "exponential", "beta", "beta57"]
     },
     "res_multistep_cfg_pp": {
       "year": 2024,
@@ -507,15 +507,15 @@
       "match": "^res_\\d+m$",
       "family": "RES (RES4LYF, multistep)",
       "summary": "RES family (Hochbruck-Ostermann exponential RK), multistep variant. The trailing N in res_Nm is the order — higher N reuses more past evaluations.",
-      "good_for": "Advanced multistep ODE solving; alternative to dpmpp_Nm",
-      "pairs_with": ["karras", "exponential", "bong_tangent"]
+      "good_for": "Advanced multistep ODE solving; alternative to dpmpp_Nm. Pairs naturally with the RES4LYF schedules (bong_tangent, beta57) that ship alongside it",
+      "pairs_with": ["karras", "exponential", "bong_tangent", "beta57"]
     },
     {
       "match": "^res_\\d+s",
       "family": "RES (RES4LYF, single-step exponential RK)",
       "summary": "RES family single-step exponential Runge-Kutta. The N in res_Ns is the stage count — more stages = more model evaluations per step = higher accuracy per step.",
-      "good_for": "High-accuracy per step at low step counts; very expensive at high stage counts (8s, 10s, 15s, 16s)",
-      "pairs_with": ["karras", "exponential", "bong_tangent"]
+      "good_for": "High-accuracy per step at low step counts; very expensive at high stage counts (8s, 10s, 15s, 16s). Pairs naturally with the RES4LYF schedules (bong_tangent, beta57) that ship alongside it",
+      "pairs_with": ["karras", "exponential", "bong_tangent", "beta57"]
     },
     {
       "match": "^dpmpp_(2|3|sde_2)s$",
@@ -528,8 +528,8 @@
       "match": "^dpmpp_\\d+m$",
       "family": "DPM-Solver++ (multistep)",
       "summary": "Deterministic multistep DPM-Solver++; the N in dpmpp_Nm is the order. dpmpp_2m has a dedicated entry — this covers the higher-order RES4LYF variants (e.g. dpmpp_3m) that reuse past evaluations like core dpmpp_2m.",
-      "good_for": "Higher-order DPM++ multistep at 25+ steps; the non-SDE sibling of dpmpp_3m_sde",
-      "pairs_with": ["karras", "exponential", "sgm_uniform"]
+      "good_for": "Higher-order DPM++ multistep at 25+ steps; the non-SDE sibling of dpmpp_3m_sde. These come from RES4LYF, so its schedules (bong_tangent, beta57) are available alongside them",
+      "pairs_with": ["karras", "exponential", "sgm_uniform", "beta57"]
     },
     {
       "match": "^etdrk\\d",

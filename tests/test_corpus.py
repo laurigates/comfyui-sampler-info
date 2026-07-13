@@ -78,3 +78,32 @@ def test_json_files_are_valid():
         path = CORPUS_DIR / name
         with open(path) as f:
             json.load(f)  # Raises on invalid JSON
+
+
+def test_pairs_with_tokens_exist_in_scheduler_corpus():
+    """Every `pairs_with` token must be a real scheduler token.
+
+    `pairs_with` is a cross-corpus reference: a sampler entry names the
+    schedulers it suits, and those names must resolve against
+    schedulers.json's `exact` keys. Nothing else checks this, so a typo'd or
+    invented scheduler token would render as a dead recommendation in the
+    tooltip and the picker's "Pairs with" line — and the UI is about to treat
+    this link as load-bearing.
+    """
+    with open(CORPUS_DIR / "schedulers.json") as f:
+        schedulers = json.load(f)
+    with open(CORPUS_DIR / "samplers.json") as f:
+        samplers = json.load(f)
+
+    known = set(schedulers["exact"])
+    unknown = []
+    for token, entry in samplers.get("exact", {}).items():
+        for sched in entry.get("pairs_with", []):
+            if sched not in known:
+                unknown.append(f"exact[{token}].pairs_with -> {sched!r}")
+    for i, entry in enumerate(samplers.get("prefix", [])):
+        for sched in entry.get("pairs_with", []):
+            if sched not in known:
+                unknown.append(f"prefix[{i}] ({entry.get('match')}).pairs_with -> {sched!r}")
+
+    assert not unknown, "pairs_with references unknown scheduler tokens: " + ", ".join(unknown)
