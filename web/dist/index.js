@@ -444,6 +444,37 @@ function safeRegex(pattern) {
     return null;
   }
 }
+function pairsWith(samplers, samplerToken, schedulerToken) {
+  if (typeof schedulerToken !== "string" || !schedulerToken)
+    return false;
+  const info = lookup(samplers, samplerToken);
+  return info?.pairs_with?.includes(schedulerToken) ?? false;
+}
+function siblingWidgetNames(isScheduler) {
+  return [...isScheduler ? SAMPLER_WIDGET_NAMES : SCHEDULER_WIDGET_NAMES];
+}
+function readNodeWidgetValue(node, names) {
+  const widgets = node?.widgets;
+  if (!Array.isArray(widgets))
+    return null;
+  for (const name of names) {
+    const w = widgets.find((x) => x?.name === name);
+    if (typeof w?.value === "string" && w.value)
+      return w.value;
+  }
+  return null;
+}
+function readSiblingValue(opts) {
+  const { names, node, getSiblingValue } = opts;
+  if (getSiblingValue) {
+    for (const name of names) {
+      const v = getSiblingValue(name);
+      if (typeof v === "string" && v)
+        return v;
+    }
+  }
+  return readNodeWidgetValue(node, names);
+}
 function lookup(corpus, token) {
   if (!token || typeof token !== "string")
     return null;
@@ -646,6 +677,11 @@ var CSS2 = `
 .si-picker .si-row:last-child {
     border-bottom: none;
 }
+/* A row whose option pairs well with the sibling widget's current value. Sits
+   before the hover/active/current rules so those still win the left border. */
+.si-picker .si-row.si-paired {
+    border-left-color: #3f7f55;
+}
 .si-picker .si-row:hover,
 .si-picker .si-row.si-active {
     background: #2a2a36;
@@ -701,6 +737,11 @@ var CSS2 = `
 .si-picker .si-badge-family { color: #c8a8ff; border-color: #3a2e4a; }
 .si-picker .si-badge-order { color: #9ec6ff; border-color: #2a3a4a; }
 .si-picker .si-badge-type { color: #b8c8a8; border-color: #2e3a2a; }
+.si-picker .si-badge-paired {
+    color: #6bff8e;
+    border-color: #2e4a34;
+    background: #1f2a1f;
+}
 .si-picker .si-summary {
     color: #b8b8c0;
     font-size: 12px;
@@ -805,7 +846,28 @@ function buildNameEl(value, matches) {
   el.appendChild(highlightMatches(value, matches));
   return el;
 }
-function buildRowEl(value, info, isCurrent, nameMatches) {
+function buildPairedBadge(sibling) {
+  const b = document.createElement("span");
+  b.className = "si-badge si-badge-paired";
+  b.textContent = `Pairs with ${sibling} ✓`;
+  return b;
+}
+function applyPairedToRow(row, paired, sibling) {
+  row.classList.toggle("si-paired", paired);
+  const head = row.querySelector(".si-row-head");
+  if (!head)
+    return;
+  const existing = head.querySelector(".si-badge-paired");
+  if (paired && sibling) {
+    if (existing)
+      existing.textContent = `Pairs with ${sibling} ✓`;
+    else
+      head.appendChild(buildPairedBadge(sibling));
+  } else {
+    existing?.remove();
+  }
+}
+function buildRowEl(value, info, isCurrent, nameMatches, paired, sibling) {
   const row = document.createElement("div");
   row.className = `si-row${isCurrent ? " si-current" : ""}`;
   row.dataset.value = value;
@@ -839,6 +901,7 @@ function buildRowEl(value, info, isCurrent, nameMatches) {
     }
   }
   row.appendChild(head);
+  applyPairedToRow(row, paired, sibling);
   if (info?.summary) {
     const sum = document.createElement("div");
     sum.className = "si-summary";
@@ -880,12 +943,64 @@ function rankFields(value, info) {
     info?.good_for,
     info?.type,
     info?.year != null ? String(info.year) : null,
-    info?.supersedes_by
+    info?.supersedes_by,
+    info?.pairs_with?.join(" ")
   ];
 }
+function rankOptions(opts) {
+  const { values, corpus, samplers, isScheduler, sibling, query, selectedValue, inline } = opts;
+  const hasFilter = !!query;
+  const ranked = [];
+  for (const value of values) {
+    const info = lookup(corpus, value);
+    const paired2 = isScheduler ? pairsWith(samplers, sibling, value) : pairsWith(samplers, value, sibling);
+    if (!hasFilter) {
+      ranked.push({ value, info, score: 0, nameMatches: [], paired: paired2 });
+      continue;
+    }
+    const r = fuzzyRank(query, rankFields(value, info), NAME_WEIGHT);
+    if (r)
+      ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches, paired: paired2 });
+  }
+  if (hasFilter) {
+    ranked.sort((a, b) => b.score - a.score);
+    return ranked;
+  }
+  if (!ranked.some((r) => r.paired)) {
+    if (inline) {
+      const cur = ranked.findIndex((r) => r.value === selectedValue);
+      if (cur >= INLINE_ROW_CAP)
+        ranked.unshift(...ranked.splice(cur, 1));
+    }
+    return ranked;
+  }
+  const current = [];
+  const paired = [];
+  const rest = [];
+  for (const r of ranked) {
+    if (r.value === selectedValue)
+      current.push(r);
+    else if (r.paired)
+      paired.push(r);
+    else
+      rest.push(r);
+  }
+  return [...current, ...paired, ...rest];
+}
 function createPickerBody(opts) {
-  const { values, corpus, initialValue, isScheduler, inline = false, onCommit } = opts;
+  const {
+    values,
+    corpus,
+    samplers,
+    initialValue,
+    isScheduler,
+    inline = false,
+    getSibling,
+    onCommit,
+    onSelect
+  } = opts;
   let selectedValue = initialValue;
+  let sibling = getSibling?.() ?? null;
   let visibleRows = [];
   let activeIndex = -1;
   let showAll = false;
@@ -914,7 +1029,11 @@ function createPickerBody(opts) {
       return;
     }
     selectedValue = value;
+    onSelect?.(value);
     renderRows();
+  }
+  function isPaired(value) {
+    return isScheduler ? pairsWith(samplers, sibling, value) : pairsWith(samplers, value, sibling);
   }
   function setActiveRow(rowEl) {
     visibleRows.forEach((r, i) => {
@@ -943,32 +1062,24 @@ function createPickerBody(opts) {
   function renderRows() {
     const query = searchEl.value.trim();
     const hasFilter = !!query;
-    const ranked = [];
-    for (const value of values) {
-      const info = lookup(corpus, value);
-      if (!hasFilter) {
-        ranked.push({ value, info, score: 0, nameMatches: [] });
-        continue;
-      }
-      const r = fuzzyRank(query, rankFields(value, info), NAME_WEIGHT);
-      if (r)
-        ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches });
-    }
-    if (hasFilter)
-      ranked.sort((a, b) => b.score - a.score);
-    if (inline && !hasFilter) {
-      const cur = ranked.findIndex((r) => r.value === selectedValue);
-      if (cur >= INLINE_ROW_CAP)
-        ranked.unshift(...ranked.splice(cur, 1));
-    }
+    const ranked = rankOptions({
+      values,
+      corpus,
+      samplers,
+      isScheduler,
+      sibling,
+      query,
+      selectedValue,
+      inline
+    });
     const capped = inline && !showAll && ranked.length > INLINE_ROW_CAP;
     const display = capped ? ranked.slice(0, INLINE_ROW_CAP) : ranked;
     listEl.innerHTML = "";
     visibleRows = [];
     let activeAssigned = false;
     let shown = 0;
-    for (const { value, info, nameMatches } of display) {
-      const row = buildRowEl(value, info, value === selectedValue, nameMatches);
+    for (const { value, info, nameMatches, paired } of display) {
+      const row = buildRowEl(value, info, value === selectedValue, nameMatches, paired, sibling);
       row.addEventListener("click", () => commitOrSelect(value));
       row.addEventListener("mouseenter", () => setActiveRow(row));
       listEl.appendChild(row);
@@ -1072,6 +1183,17 @@ function createPickerBody(opts) {
       onSearchInput();
     }
   }
+  function setSibling(value) {
+    if (value === sibling)
+      return;
+    sibling = value;
+    for (const row of visibleRows) {
+      const v = row.dataset.value;
+      if (v === undefined)
+        continue;
+      applyPairedToRow(row, isPaired(v), sibling);
+    }
+  }
   searchEl.addEventListener("input", onSearchInput);
   root.addEventListener("keydown", onKeydown);
   renderRows();
@@ -1079,6 +1201,7 @@ function createPickerBody(opts) {
     el: root,
     searchEl,
     getValue: () => selectedValue,
+    setSibling,
     focus: () => searchEl.focus(),
     destroy: () => {
       root.removeEventListener("keydown", onKeydown);
@@ -1137,8 +1260,10 @@ function openPicker(widget, node) {
   const body = createPickerBody({
     values,
     corpus: widgetCorpus(widget),
+    samplers: SAMPLERS,
     initialValue: String(widget.value),
     isScheduler,
+    getSibling: () => readSiblingValue({ names: siblingWidgetNames(isScheduler), node: node ?? null }),
     onCommit: (value) => {
       dismissActiveModal();
       commitWidgetValue(widget, node, value);
@@ -1185,24 +1310,40 @@ registerFieldProvider({
   id: "sampler-info:combo",
   priority: 10,
   match: (widget) => typeof widget?.name === "string" && (SAMPLER_WIDGET_NAMES.has(widget.name) || SCHEDULER_WIDGET_NAMES.has(widget.name)),
-  create: ({ widget, node, initialValue }) => {
+  create: ({ widget, node, initialValue, getSiblingValue, onSiblingChange }) => {
     ensureStyleOnce(STYLE_ID2, CSS2);
     const isScheduler = isSchedulerName(widget?.name);
     const values = resolveComboValues(widget?.options?.values, widget, node);
     const initialStr = String(initialValue ?? widget?.value ?? "");
+    const names = siblingWidgetNames(isScheduler);
+    let valueChangeCb;
     const body = createPickerBody({
       values,
       corpus: isScheduler ? SCHEDULERS : SAMPLERS,
+      samplers: SAMPLERS,
       initialValue: initialStr,
       isScheduler,
-      inline: true
+      inline: true,
+      getSibling: () => readSiblingValue({ names, node, getSiblingValue }),
+      onSelect: (value) => valueChangeCb?.(value)
+    });
+    const unsubscribe = onSiblingChange?.((widgetName, value) => {
+      if (!names.includes(widgetName))
+        return;
+      body.setSibling(typeof value === "string" && value ? value : null);
     });
     return {
       el: body.el,
       getValue: () => body.getValue(),
       hasChanged: () => body.getValue() !== initialStr,
+      onValueChange: (cb) => {
+        valueChangeCb = cb;
+      },
       focus: () => body.focus(),
-      destroy: () => body.destroy()
+      destroy: () => {
+        unsubscribe?.();
+        body.destroy();
+      }
     };
   }
 });
@@ -1264,6 +1405,9 @@ app.registerExtension({
 });
 export {
   safeRegex,
+  readSiblingValue,
+  rankOptions,
+  pairsWith,
   lookup,
   compileCorpus,
   CSS2 as CSS

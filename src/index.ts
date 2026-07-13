@@ -177,6 +177,68 @@ export function safeRegex(pattern: string | undefined): RegExp | null {
   }
 }
 
+// ============================================================
+// Pairing affinity
+// ============================================================
+
+// `pairs_with` lives ONLY on sampler entries — a scheduler never declares one.
+// That makes affinity a single symmetric predicate, and it works for the
+// RES4LYF prefix families for free because `lookup()` resolves a token through
+// exact -> alias -> prefix. No pairs_with on the entry (or no sibling value)
+// means no badge and no reordering — exactly today's behaviour.
+export function pairsWith(
+  samplers: Corpus,
+  samplerToken: unknown,
+  schedulerToken: unknown,
+): boolean {
+  if (typeof schedulerToken !== "string" || !schedulerToken) return false;
+  const info = lookup(samplers, samplerToken);
+  return info?.pairs_with?.includes(schedulerToken) ?? false;
+}
+
+// The sibling widget of a scheduler control is the sampler widget, and vice
+// versa. A node may name it `sampler_name` OR `sampler`, so this is a list of
+// candidate names, tried in order.
+function siblingWidgetNames(isScheduler: boolean): string[] {
+  return [...(isScheduler ? SAMPLER_WIDGET_NAMES : SCHEDULER_WIDGET_NAMES)];
+}
+
+// Read a widget's value off the node itself. This is the COMMITTED value —
+// correct in the standalone picker (only one widget is being edited) and the
+// fallback when a host supplies no live-value bus.
+function readNodeWidgetValue(node: unknown, names: string[]): string | null {
+  const widgets = (node as SamplerNode | null | undefined)?.widgets;
+  if (!Array.isArray(widgets)) return null;
+  for (const name of names) {
+    const w = widgets.find((x) => x?.name === name);
+    if (typeof w?.value === "string" && w.value) return w.value;
+  }
+  return null;
+}
+
+// Resolve the sibling's value, preferring the host's LIVE (uncommitted) value.
+//
+// The trap this exists for: comfyui-prompt-editor edits several widgets in one
+// modal and only writes them back to the node on commit. Reading
+// `node.widgets[]` there yields the value from *before* the modal opened, so a
+// scheduler list would highlight the pairings of the sampler the user just
+// replaced. `getSiblingValue` is the kit's live-value bus; it is optional, so
+// an older host (or the standalone path) falls back to the node.
+export function readSiblingValue(opts: {
+  names: string[];
+  node: unknown;
+  getSiblingValue?: (widgetName: string) => unknown;
+}): string | null {
+  const { names, node, getSiblingValue } = opts;
+  if (getSiblingValue) {
+    for (const name of names) {
+      const v = getSiblingValue(name);
+      if (typeof v === "string" && v) return v;
+    }
+  }
+  return readNodeWidgetValue(node, names);
+}
+
 export function lookup(corpus: Corpus, token: unknown): SamplerInfo | null {
   if (!token || typeof token !== "string") return null;
   const exact = corpus.exact[token];
@@ -380,6 +442,11 @@ export const CSS = `
 .si-picker .si-row:last-child {
     border-bottom: none;
 }
+/* A row whose option pairs well with the sibling widget's current value. Sits
+   before the hover/active/current rules so those still win the left border. */
+.si-picker .si-row.si-paired {
+    border-left-color: #3f7f55;
+}
 .si-picker .si-row:hover,
 .si-picker .si-row.si-active {
     background: #2a2a36;
@@ -435,6 +502,11 @@ export const CSS = `
 .si-picker .si-badge-family { color: #c8a8ff; border-color: #3a2e4a; }
 .si-picker .si-badge-order { color: #9ec6ff; border-color: #2a3a4a; }
 .si-picker .si-badge-type { color: #b8c8a8; border-color: #2e3a2a; }
+.si-picker .si-badge-paired {
+    color: #6bff8e;
+    border-color: #2e4a34;
+    background: #1f2a1f;
+}
 .si-picker .si-summary {
     color: #b8b8c0;
     font-size: 12px;
@@ -546,11 +618,39 @@ function buildNameEl(value: string, matches: number[] | null | undefined): HTMLS
   return el;
 }
 
+// The "Pairs with <sibling> ✓" badge. Lives on the row's badge line next to
+// the year/family/order badges rather than in the grey `.si-meta` text line —
+// it is a badge, and the badge line is where the eye already scans for them.
+function buildPairedBadge(sibling: string): HTMLSpanElement {
+  const b = document.createElement("span");
+  b.className = "si-badge si-badge-paired";
+  b.textContent = `Pairs with ${sibling} ✓`;
+  return b;
+}
+
+// Toggle a row's paired state in place — a class flip plus one badge span.
+// Used both when a row is first built and when the sibling's value changes
+// mid-session, so a cross-field update costs no re-render (and no typing lag).
+function applyPairedToRow(row: HTMLElement, paired: boolean, sibling: string | null): void {
+  row.classList.toggle("si-paired", paired);
+  const head = row.querySelector<HTMLElement>(".si-row-head");
+  if (!head) return;
+  const existing = head.querySelector<HTMLElement>(".si-badge-paired");
+  if (paired && sibling) {
+    if (existing) existing.textContent = `Pairs with ${sibling} ✓`;
+    else head.appendChild(buildPairedBadge(sibling));
+  } else {
+    existing?.remove();
+  }
+}
+
 function buildRowEl(
   value: string,
   info: SamplerInfo | null,
   isCurrent: boolean,
   nameMatches: number[],
+  paired: boolean,
+  sibling: string | null,
 ): HTMLDivElement {
   const row = document.createElement("div");
   row.className = `si-row${isCurrent ? " si-current" : ""}`;
@@ -587,6 +687,7 @@ function buildRowEl(
     }
   }
   row.appendChild(head);
+  applyPairedToRow(row, paired, sibling);
 
   if (info?.summary) {
     const sum = document.createElement("div");
@@ -637,13 +738,93 @@ function rankFields(value: string, info: SamplerInfo | null): (string | null | u
     info?.type,
     info?.year != null ? String(info.year) : null,
     info?.supersedes_by,
+    // Searching `karras` in the SAMPLER picker should surface the samplers that
+    // pair with it, not just the ones whose prose happens to mention it.
+    info?.pairs_with?.join(" "),
   ];
+}
+
+export interface RankedOption {
+  value: string;
+  info: SamplerInfo | null;
+  score: number;
+  nameMatches: number[];
+  paired: boolean;
+}
+
+// The list's ordering, extracted whole so it is testable without a DOM.
+//
+// Typed search is NEVER reordered by pairing: with a query, fuzzy relevance
+// wins outright and pairing survives only as a badge. Browse mode (empty
+// query) is where the boost applies — current value first, then the paired
+// options, then the rest, each preserving the node's native option order.
+//
+// With no paired options at all (no sibling value, or no `pairs_with` in the
+// corpus) the browse order is byte-for-byte what it was before this feature:
+// native order, plus the pre-existing inline hoist of a current value that
+// would otherwise sit below the row cap.
+export function rankOptions(opts: {
+  values: string[];
+  corpus: Corpus;
+  samplers: Corpus;
+  isScheduler: boolean;
+  sibling: string | null;
+  query: string;
+  selectedValue: string;
+  inline?: boolean;
+}): RankedOption[] {
+  const { values, corpus, samplers, isScheduler, sibling, query, selectedValue, inline } = opts;
+  const hasFilter = !!query;
+
+  const ranked: RankedOption[] = [];
+  for (const value of values) {
+    const info = lookup(corpus, value);
+    // One predicate, both directions: the sampler side of the pair is the
+    // sibling when we are listing schedulers, and the option itself otherwise.
+    const paired = isScheduler
+      ? pairsWith(samplers, sibling, value)
+      : pairsWith(samplers, value, sibling);
+    if (!hasFilter) {
+      ranked.push({ value, info, score: 0, nameMatches: [], paired });
+      continue;
+    }
+    const r = fuzzyRank(query, rankFields(value, info), NAME_WEIGHT);
+    if (r) ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches, paired });
+  }
+
+  if (hasFilter) {
+    ranked.sort((a, b) => b.score - a.score);
+    return ranked;
+  }
+
+  if (!ranked.some((r) => r.paired)) {
+    // Inline has no scroller, so a current value below the cap would be
+    // invisible; hoist it. (Pre-existing behaviour, PR #71.)
+    if (inline) {
+      const cur = ranked.findIndex((r) => r.value === selectedValue);
+      if (cur >= INLINE_ROW_CAP) ranked.unshift(...ranked.splice(cur, 1));
+    }
+    return ranked;
+  }
+
+  const current: RankedOption[] = [];
+  const paired: RankedOption[] = [];
+  const rest: RankedOption[] = [];
+  for (const r of ranked) {
+    if (r.value === selectedValue) current.push(r);
+    else if (r.paired) paired.push(r);
+    else rest.push(r);
+  }
+  return [...current, ...paired, ...rest];
 }
 
 interface PickerBody {
   el: HTMLDivElement;
   searchEl: HTMLInputElement;
   getValue(): string;
+  // Live cross-field update: the sibling widget's value changed in the same
+  // modal session. Patches the badges in place — no re-render, no typing lag.
+  setSibling(value: string | null): void;
   focus(): void;
   destroy(): void;
 }
@@ -656,17 +837,38 @@ interface PickerBody {
 function createPickerBody(opts: {
   values: string[];
   corpus: Corpus;
+  // The sampler corpus — the pairing predicate always reads `pairs_with` from
+  // the sampler side, whichever kind of option this picker is listing.
+  samplers: Corpus;
   initialValue: string;
   isScheduler: boolean;
   // Inline mount (field provider): no scroll container, so the row list is
   // capped at INLINE_ROW_CAP with a "Show all" expander instead of scrolling.
   inline?: boolean;
+  // Reads the sibling widget's value (the sampler when this picker lists
+  // schedulers, and vice versa). Injected by the caller because the right
+  // source differs per path: the host's live bus inline, the node's committed
+  // value standalone. Absent ⇒ no pairing data ⇒ today's behaviour.
+  getSibling?: () => string | null;
   // Modal path: commit + close on selection. Inline path omits this — a
   // selection just marks the row current; the editor commits on save.
   onCommit?: (value: string) => void;
+  // Inline path: told on every selection so the host can inform sibling fields.
+  onSelect?: (value: string) => void;
 }): PickerBody {
-  const { values, corpus, initialValue, isScheduler, inline = false, onCommit } = opts;
+  const {
+    values,
+    corpus,
+    samplers,
+    initialValue,
+    isScheduler,
+    inline = false,
+    getSibling,
+    onCommit,
+    onSelect,
+  } = opts;
   let selectedValue = initialValue;
+  let sibling = getSibling?.() ?? null;
   let visibleRows: HTMLElement[] = [];
   let activeIndex = -1;
   // Inline only: sticky once the user expands, reset when the query changes.
@@ -702,7 +904,12 @@ function createPickerBody(opts: {
       return;
     }
     selectedValue = value;
+    onSelect?.(value);
     renderRows();
+  }
+
+  function isPaired(value: string): boolean {
+    return isScheduler ? pairsWith(samplers, sibling, value) : pairsWith(samplers, value, sibling);
   }
 
   function setActiveRow(rowEl: HTMLElement): void {
@@ -732,33 +939,21 @@ function createPickerBody(opts: {
     const query = searchEl.value.trim();
     const hasFilter = !!query;
 
-    const ranked: {
-      value: string;
-      info: SamplerInfo | null;
-      score: number;
-      nameMatches: number[];
-    }[] = [];
-    for (const value of values) {
-      const info = lookup(corpus, value);
-      if (!hasFilter) {
-        ranked.push({ value, info, score: 0, nameMatches: [] });
-        continue;
-      }
-      const r = fuzzyRank(query, rankFields(value, info), NAME_WEIGHT);
-      if (r) ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches });
-    }
-    // With a filter, best match at the top; without, preserve list order
-    // (users remember "the third option in the family").
-    if (hasFilter) ranked.sort((a, b) => b.score - a.score);
+    // Ordering (relevance when filtering, pairing boost when browsing) lives in
+    // the pure `rankOptions` — this function only renders what it returns.
+    const ranked = rankOptions({
+      values,
+      corpus,
+      samplers,
+      isScheduler,
+      sibling,
+      query,
+      selectedValue,
+      inline,
+    });
 
-    // Inline: no scroller, so cap the rows and offer an expander. Unfiltered,
-    // the list keeps its native order — which can bury the current value below
-    // the cap — so hoist it into view. Filtered, the order IS the ranking and
-    // the top-scored row is the one the user is aiming at; leave it alone.
-    if (inline && !hasFilter) {
-      const cur = ranked.findIndex((r) => r.value === selectedValue);
-      if (cur >= INLINE_ROW_CAP) ranked.unshift(...ranked.splice(cur, 1));
-    }
+    // Inline: no scroller, so cap the rows and offer an expander. The boost
+    // above already put the paired rows where the cap can see them.
     const capped = inline && !showAll && ranked.length > INLINE_ROW_CAP;
     const display = capped ? ranked.slice(0, INLINE_ROW_CAP) : ranked;
 
@@ -766,8 +961,8 @@ function createPickerBody(opts: {
     visibleRows = [];
     let activeAssigned = false;
     let shown = 0;
-    for (const { value, info, nameMatches } of display) {
-      const row = buildRowEl(value, info, value === selectedValue, nameMatches);
+    for (const { value, info, nameMatches, paired } of display) {
+      const row = buildRowEl(value, info, value === selectedValue, nameMatches, paired, sibling);
       row.addEventListener("click", () => commitOrSelect(value));
       row.addEventListener("mouseenter", () => setActiveRow(row));
       listEl.appendChild(row);
@@ -879,6 +1074,20 @@ function createPickerBody(opts: {
     }
   }
 
+  // A sibling change repaints badges only — the rows themselves keep their
+  // positions. Re-ranking mid-session would yank rows out from under a pointer
+  // (and under the cursor's row while typing); the badge is the signal, the
+  // order is settled when the list opens.
+  function setSibling(value: string | null): void {
+    if (value === sibling) return;
+    sibling = value;
+    for (const row of visibleRows) {
+      const v = row.dataset.value;
+      if (v === undefined) continue;
+      applyPairedToRow(row, isPaired(v), sibling);
+    }
+  }
+
   searchEl.addEventListener("input", onSearchInput);
   root.addEventListener("keydown", onKeydown);
 
@@ -888,6 +1097,7 @@ function createPickerBody(opts: {
     el: root,
     searchEl,
     getValue: () => selectedValue,
+    setSibling,
     focus: () => searchEl.focus(),
     destroy: () => {
       root.removeEventListener("keydown", onKeydown);
@@ -965,8 +1175,13 @@ function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
   const body = createPickerBody({
     values,
     corpus: widgetCorpus(widget),
+    samplers: SAMPLERS,
     initialValue: String(widget.value),
     isScheduler,
+    // Standalone: this modal edits one widget, so nothing else is uncommitted —
+    // the node's own widget value IS the live sibling value here.
+    getSibling: () =>
+      readSiblingValue({ names: siblingWidgetNames(isScheduler), node: node ?? null }),
     onCommit: (value) => {
       dismissActiveModal();
       commitWidgetValue(widget, node, value);
@@ -1038,24 +1253,47 @@ registerFieldProvider({
   match: (widget) =>
     typeof widget?.name === "string" &&
     (SAMPLER_WIDGET_NAMES.has(widget.name) || SCHEDULER_WIDGET_NAMES.has(widget.name)),
-  create: ({ widget, node, initialValue }) => {
+  create: ({ widget, node, initialValue, getSiblingValue, onSiblingChange }) => {
     ensureStyleOnce(STYLE_ID, CSS);
     const isScheduler = isSchedulerName(widget?.name);
     const values = resolveComboValues(widget?.options?.values, widget, node);
     const initialStr = String(initialValue ?? widget?.value ?? "");
+    const names = siblingWidgetNames(isScheduler);
+    let valueChangeCb: ((value: unknown) => void) | undefined;
+    // The host edits several fields at once and only writes back on commit, so
+    // `node.widgets[]` holds the value from BEFORE the modal opened. Read the
+    // sibling through the kit's live bus; the node is only the fallback for a
+    // host too old to provide one.
     const body = createPickerBody({
       values,
       corpus: isScheduler ? SCHEDULERS : SAMPLERS,
+      samplers: SAMPLERS,
       initialValue: initialStr,
       isScheduler,
       inline: true,
+      getSibling: () => readSiblingValue({ names, node, getSiblingValue }),
+      // Tell the host when this field changes, so the sibling field's control
+      // (the other half of this pack's pair) can repaint its badges live.
+      onSelect: (value) => valueChangeCb?.(value),
+    });
+    // Both members are optional — an older comfyui-prompt-editor supplies
+    // neither, and the picker then simply shows the committed-value badges.
+    const unsubscribe = onSiblingChange?.((widgetName, value) => {
+      if (!names.includes(widgetName)) return;
+      body.setSibling(typeof value === "string" && value ? value : null);
     });
     return {
       el: body.el,
       getValue: () => body.getValue(),
       hasChanged: () => body.getValue() !== initialStr,
+      onValueChange: (cb) => {
+        valueChangeCb = cb;
+      },
       focus: () => body.focus(),
-      destroy: () => body.destroy(),
+      destroy: () => {
+        unsubscribe?.();
+        body.destroy();
+      },
     };
   },
 });
