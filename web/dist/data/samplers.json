@@ -12,7 +12,7 @@
       "order": 1,
       "type": "deterministic",
       "summary": "Simplest first-order ODE solver. The baseline — fast, predictable, slightly soft. Also the default on recent rectified-flow / flow-matching models, whose straighter trajectory makes a first-order solver competitive.",
-      "good_for": "The reference sampler on recent rectified-flow models: FLUX.2 Klein with simple/normal (distilled, 4-8 steps at CFG 1-2; the base 9B wants 20-24 steps at CFG 3.5-5) and Qwen-Image-Edit 2511 with simple. On SD1.5/SDXL: quick previews, anime, conservative low-step counts (10-20)",
+      "good_for": "The reference sampler on recent rectified-flow models: Krea 2 Turbo with simple (the shipped ComfyUI template is euler + simple, 8 steps, CFG 1), FLUX.2 Klein with simple/normal (distilled, 4-8 steps at CFG 1-2; the base 9B wants 20-24 steps at CFG 3.5-5), FLUX.1 Krea dev with simple (20 steps, CFG 1) and Qwen-Image-Edit 2511 with simple. On SD1.5/SDXL: quick previews, anime, conservative low-step counts (10-20)",
       "pairs_with": ["normal", "simple", "karras", "beta", "beta57"]
     },
     "euler_cfg_pp": {

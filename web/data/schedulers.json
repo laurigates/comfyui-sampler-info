@@ -8,7 +8,8 @@
     "simple": {
       "year": 2022,
       "summary": "Naive equally-spaced sigma schedule. The plainest scheduler — used with samplers that bring their own pacing, and the reference schedule for recent rectified-flow models.",
-      "good_for": "The standard pick on recent rectified-flow models — euler + simple is the reference setup for the distilled FLUX.2 Klein (4-8 steps, CFG 1-2) and for Qwen-Image-Edit 2511. Also useful when a sampler brings its own pacing (dpm_adaptive, dpm_fast). On eps/v-prediction models (SD1.5, SDXL) karras or sgm_uniform usually beat it"
+      "good_for": "The standard pick on recent rectified-flow models — euler + simple is the setup ComfyUI's own templates ship for Krea 2 Turbo (8 steps, CFG 1), FLUX.1 Krea dev (20 steps, CFG 1) and the distilled FLUX.2 Klein (4-8 steps, CFG 1-2), and the reference pairing for Qwen-Image-Edit 2511. Also useful when a sampler brings its own pacing (dpm_adaptive, dpm_fast). On eps/v-prediction models (SD1.5, SDXL) karras or sgm_uniform usually beat it",
+      "notes": "Krea 2 (Qwen3VL-4B text encoder, qwen_image_vae) is a distinct model from FLUX.1 Krea dev, despite the shared name — both default to euler + simple, but Krea 2 Turbo is an 8-step distilled checkpoint. The Raw/Base variant wants far more steps (~52) at CFG ~3.5-4.5; ComfyUI ships no Raw template, so treat those figures as community guidance rather than an official default."
     },
     "normal": {
       "year": 2022,
