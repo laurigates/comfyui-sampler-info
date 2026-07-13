@@ -59,6 +59,10 @@ const DIALOG_ID = "sampler-info-dialog";
 // The primary field (the option name) is weighted this much heavier than the
 // metadata fields when ranking, so a hit on the name beats a hit on a summary.
 const NAME_WEIGHT = 10;
+// Inline mounts have no scroll container (the host shell's body is the single
+// scroll region), so a 100+-row list would grow the shell unboundedly. Cap the
+// rows and let the user expand or narrow with the search box instead.
+const INLINE_ROW_CAP = 10;
 
 // ============================================================
 // Types
@@ -250,7 +254,10 @@ function refreshWidgetTooltip(widget: PatchedWidget): void {
 // Option B/C: picker body (shared inline control)
 // ============================================================
 
-const CSS = `
+// Exported so the regression test can assert on the rule blocks directly —
+// JSDOM computes no layout, so the CSS source is the only place the
+// "inline must not nest a scroll container" contract is observable.
+export const CSS = `
 #${DIALOG_ID}-backdrop {
     position: fixed;
     inset: 0;
@@ -451,6 +458,48 @@ const CSS = `
     color: #777;
     font-style: italic;
 }
+/* Inline mount (comfy-modal-kit field provider): the host shell's .cmp-body is
+   the single scroll region. Mounted inline the parent chain has no definite
+   height, so .si-list's flex:1 + min-height:0 never resolve — it would capture
+   the touch gesture with nothing to scroll, and overscroll-behavior:contain
+   would stop the gesture chaining back out to .cmp-body. Same bug as the
+   .pe-wrap nested scroller fixed in comfyui-prompt-editor d39feca. The list is
+   therefore a plain block that grows to its content height (row capping, not
+   scrolling, keeps it short — see INLINE_ROW_CAP).
+
+   NOTE ON SPECIFICITY: .si-picker--inline .si-list ties with the base
+   .si-picker .si-list (0,2,0), so this block MUST stay after it in the
+   stylesheet — source order is what makes it win. Don't reorder. */
+.si-picker--inline .si-list {
+    flex: none;
+    min-height: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: auto;
+    overscroll-behavior: auto;
+}
+.si-picker--inline .si-more {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 14px;
+    color: #888;
+    font-size: 12px;
+}
+.si-picker--inline .si-showall {
+    background: #2a2a36;
+    color: #b8b8c0;
+    border: 1px solid #3a3a44;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+.si-picker--inline .si-showall:hover {
+    background: #34343f;
+    color: #fff;
+}
 #${DIALOG_ID} .si-footer {
     padding: 8px 14px;
     border-top: 1px solid #2a2a32;
@@ -609,17 +658,23 @@ function createPickerBody(opts: {
   corpus: Corpus;
   initialValue: string;
   isScheduler: boolean;
+  // Inline mount (field provider): no scroll container, so the row list is
+  // capped at INLINE_ROW_CAP with a "Show all" expander instead of scrolling.
+  inline?: boolean;
   // Modal path: commit + close on selection. Inline path omits this — a
   // selection just marks the row current; the editor commits on save.
   onCommit?: (value: string) => void;
 }): PickerBody {
-  const { values, corpus, initialValue, isScheduler, onCommit } = opts;
+  const { values, corpus, initialValue, isScheduler, inline = false, onCommit } = opts;
   let selectedValue = initialValue;
   let visibleRows: HTMLElement[] = [];
   let activeIndex = -1;
+  // Inline only: sticky once the user expands, reset when the query changes.
+  let showAll = false;
+  let lastQuery = "";
 
   const root = document.createElement("div");
-  root.className = "si-picker";
+  root.className = inline ? "si-picker si-picker--inline" : "si-picker";
 
   const searchRow = document.createElement("div");
   searchRow.className = "si-searchrow";
@@ -696,11 +751,22 @@ function createPickerBody(opts: {
     // (users remember "the third option in the family").
     if (hasFilter) ranked.sort((a, b) => b.score - a.score);
 
+    // Inline: no scroller, so cap the rows and offer an expander. Unfiltered,
+    // the list keeps its native order — which can bury the current value below
+    // the cap — so hoist it into view. Filtered, the order IS the ranking and
+    // the top-scored row is the one the user is aiming at; leave it alone.
+    if (inline && !hasFilter) {
+      const cur = ranked.findIndex((r) => r.value === selectedValue);
+      if (cur >= INLINE_ROW_CAP) ranked.unshift(...ranked.splice(cur, 1));
+    }
+    const capped = inline && !showAll && ranked.length > INLINE_ROW_CAP;
+    const display = capped ? ranked.slice(0, INLINE_ROW_CAP) : ranked;
+
     listEl.innerHTML = "";
     visibleRows = [];
     let activeAssigned = false;
     let shown = 0;
-    for (const { value, info, nameMatches } of ranked) {
+    for (const { value, info, nameMatches } of display) {
       const row = buildRowEl(value, info, value === selectedValue, nameMatches);
       row.addEventListener("click", () => commitOrSelect(value));
       row.addEventListener("mouseenter", () => setActiveRow(row));
@@ -731,7 +797,35 @@ function createPickerBody(opts: {
       (visibleRows[0] as HTMLElement).classList.add("si-active");
       activeIndex = 0;
     }
-    countEl.textContent = `${shown} / ${values.length}`;
+    if (capped) {
+      const more = document.createElement("div");
+      more.className = "si-more";
+      const label = document.createElement("span");
+      label.textContent = `… ${ranked.length - shown} more`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "si-showall";
+      btn.textContent = "Show all";
+      btn.addEventListener("click", () => {
+        showAll = true;
+        renderRows();
+      });
+      more.appendChild(label);
+      more.appendChild(btn);
+      listEl.appendChild(more);
+    }
+    countEl.textContent = `${ranked.length} / ${values.length}`;
+  }
+
+  function onSearchInput(): void {
+    // A new query re-caps the inline list — "Show all" is sticky only for the
+    // query it was clicked on.
+    const query = searchEl.value.trim();
+    if (query !== lastQuery) {
+      lastQuery = query;
+      showAll = false;
+    }
+    renderRows();
   }
 
   function onKeydown(e: KeyboardEvent): void {
@@ -770,7 +864,7 @@ function createPickerBody(opts: {
       if (pos > 0) {
         searchEl.value = searchEl.value.slice(0, pos - 1) + searchEl.value.slice(pos);
         searchEl.setSelectionRange(pos - 1, pos - 1);
-        renderRows();
+        onSearchInput();
       }
       return;
     }
@@ -781,11 +875,11 @@ function createPickerBody(opts: {
       const pos = searchEl.selectionStart ?? searchEl.value.length;
       searchEl.value = searchEl.value.slice(0, pos) + e.key + searchEl.value.slice(pos);
       searchEl.setSelectionRange(pos + 1, pos + 1);
-      renderRows();
+      onSearchInput();
     }
   }
 
-  searchEl.addEventListener("input", renderRows);
+  searchEl.addEventListener("input", onSearchInput);
   root.addEventListener("keydown", onKeydown);
 
   renderRows();
@@ -797,7 +891,7 @@ function createPickerBody(opts: {
     focus: () => searchEl.focus(),
     destroy: () => {
       root.removeEventListener("keydown", onKeydown);
-      searchEl.removeEventListener("input", renderRows);
+      searchEl.removeEventListener("input", onSearchInput);
       root.remove();
     },
   };
@@ -954,6 +1048,7 @@ registerFieldProvider({
       corpus: isScheduler ? SCHEDULERS : SAMPLERS,
       initialValue: initialStr,
       isScheduler,
+      inline: true,
     });
     return {
       el: body.el,

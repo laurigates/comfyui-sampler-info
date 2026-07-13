@@ -406,6 +406,7 @@ var SCHEDULER_WIDGET_NAMES = new Set(["scheduler"]);
 var STYLE_ID2 = "sampler-info-style";
 var DIALOG_ID = "sampler-info-dialog";
 var NAME_WEIGHT = 10;
+var INLINE_ROW_CAP = 10;
 var SAMPLERS = { exact: {}, prefix: [], alias: {} };
 var SCHEDULERS = { exact: {}, prefix: [], alias: {} };
 var CORPUS_LOADED = false;
@@ -723,6 +724,48 @@ var CSS2 = `
     color: #777;
     font-style: italic;
 }
+/* Inline mount (comfy-modal-kit field provider): the host shell's .cmp-body is
+   the single scroll region. Mounted inline the parent chain has no definite
+   height, so .si-list's flex:1 + min-height:0 never resolve — it would capture
+   the touch gesture with nothing to scroll, and overscroll-behavior:contain
+   would stop the gesture chaining back out to .cmp-body. Same bug as the
+   .pe-wrap nested scroller fixed in comfyui-prompt-editor d39feca. The list is
+   therefore a plain block that grows to its content height (row capping, not
+   scrolling, keeps it short — see INLINE_ROW_CAP).
+
+   NOTE ON SPECIFICITY: .si-picker--inline .si-list ties with the base
+   .si-picker .si-list (0,2,0), so this block MUST stay after it in the
+   stylesheet — source order is what makes it win. Don't reorder. */
+.si-picker--inline .si-list {
+    flex: none;
+    min-height: auto;
+    overflow-y: visible;
+    -webkit-overflow-scrolling: auto;
+    overscroll-behavior: auto;
+}
+.si-picker--inline .si-more {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 14px;
+    color: #888;
+    font-size: 12px;
+}
+.si-picker--inline .si-showall {
+    background: #2a2a36;
+    color: #b8b8c0;
+    border: 1px solid #3a3a44;
+    border-radius: 4px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 12px;
+    cursor: pointer;
+}
+.si-picker--inline .si-showall:hover {
+    background: #34343f;
+    color: #fff;
+}
 #${DIALOG_ID} .si-footer {
     padding: 8px 14px;
     border-top: 1px solid #2a2a32;
@@ -841,12 +884,14 @@ function rankFields(value, info) {
   ];
 }
 function createPickerBody(opts) {
-  const { values, corpus, initialValue, isScheduler, onCommit } = opts;
+  const { values, corpus, initialValue, isScheduler, inline = false, onCommit } = opts;
   let selectedValue = initialValue;
   let visibleRows = [];
   let activeIndex = -1;
+  let showAll = false;
+  let lastQuery = "";
   const root = document.createElement("div");
-  root.className = "si-picker";
+  root.className = inline ? "si-picker si-picker--inline" : "si-picker";
   const searchRow = document.createElement("div");
   searchRow.className = "si-searchrow";
   const searchEl = document.createElement("input");
@@ -911,11 +956,18 @@ function createPickerBody(opts) {
     }
     if (hasFilter)
       ranked.sort((a, b) => b.score - a.score);
+    if (inline && !hasFilter) {
+      const cur = ranked.findIndex((r) => r.value === selectedValue);
+      if (cur >= INLINE_ROW_CAP)
+        ranked.unshift(...ranked.splice(cur, 1));
+    }
+    const capped = inline && !showAll && ranked.length > INLINE_ROW_CAP;
+    const display = capped ? ranked.slice(0, INLINE_ROW_CAP) : ranked;
     listEl.innerHTML = "";
     visibleRows = [];
     let activeAssigned = false;
     let shown = 0;
-    for (const { value, info, nameMatches } of ranked) {
+    for (const { value, info, nameMatches } of display) {
       const row = buildRowEl(value, info, value === selectedValue, nameMatches);
       row.addEventListener("click", () => commitOrSelect(value));
       row.addEventListener("mouseenter", () => setActiveRow(row));
@@ -944,7 +996,32 @@ function createPickerBody(opts) {
       visibleRows[0].classList.add("si-active");
       activeIndex = 0;
     }
-    countEl.textContent = `${shown} / ${values.length}`;
+    if (capped) {
+      const more = document.createElement("div");
+      more.className = "si-more";
+      const label = document.createElement("span");
+      label.textContent = `… ${ranked.length - shown} more`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "si-showall";
+      btn.textContent = "Show all";
+      btn.addEventListener("click", () => {
+        showAll = true;
+        renderRows();
+      });
+      more.appendChild(label);
+      more.appendChild(btn);
+      listEl.appendChild(more);
+    }
+    countEl.textContent = `${ranked.length} / ${values.length}`;
+  }
+  function onSearchInput() {
+    const query = searchEl.value.trim();
+    if (query !== lastQuery) {
+      lastQuery = query;
+      showAll = false;
+    }
+    renderRows();
   }
   function onKeydown(e) {
     switch (e.key) {
@@ -981,7 +1058,7 @@ function createPickerBody(opts) {
       if (pos > 0) {
         searchEl.value = searchEl.value.slice(0, pos - 1) + searchEl.value.slice(pos);
         searchEl.setSelectionRange(pos - 1, pos - 1);
-        renderRows();
+        onSearchInput();
       }
       return;
     }
@@ -992,10 +1069,10 @@ function createPickerBody(opts) {
       const pos = searchEl.selectionStart ?? searchEl.value.length;
       searchEl.value = searchEl.value.slice(0, pos) + e.key + searchEl.value.slice(pos);
       searchEl.setSelectionRange(pos + 1, pos + 1);
-      renderRows();
+      onSearchInput();
     }
   }
-  searchEl.addEventListener("input", renderRows);
+  searchEl.addEventListener("input", onSearchInput);
   root.addEventListener("keydown", onKeydown);
   renderRows();
   return {
@@ -1005,7 +1082,7 @@ function createPickerBody(opts) {
     focus: () => searchEl.focus(),
     destroy: () => {
       root.removeEventListener("keydown", onKeydown);
-      searchEl.removeEventListener("input", renderRows);
+      searchEl.removeEventListener("input", onSearchInput);
       root.remove();
     }
   };
@@ -1117,7 +1194,8 @@ registerFieldProvider({
       values,
       corpus: isScheduler ? SCHEDULERS : SAMPLERS,
       initialValue: initialStr,
-      isScheduler
+      isScheduler,
+      inline: true
     });
     return {
       el: body.el,
@@ -1187,5 +1265,6 @@ app.registerExtension({
 export {
   safeRegex,
   lookup,
-  compileCorpus
+  compileCorpus,
+  CSS2 as CSS
 };
