@@ -40,6 +40,16 @@ describe("inline picker CSS", () => {
     expect(inline).not.toMatch(/overscroll-behavior:\s*contain/);
   });
 
+  // Omitting the scroll declarations is NOT enough: the root carries both
+  // classes, so the base `.si-picker .si-list` rule still matches an inline
+  // mount. The reset only lands if this block actively overrides it — an
+  // inline block that merely *lacks* `overflow-y: auto` would leave the base
+  // rule in force and the bug alive, while still passing the test above.
+  test("the inline path actively resets the base rule's scroll declarations", () => {
+    expect(inline).toMatch(/overflow-y:\s*visible/);
+    expect(inline).toMatch(/overscroll-behavior:\s*auto/);
+  });
+
   test("the inline reset overrides the base rule (equal specificity → source order)", () => {
     expect(CSS.indexOf(".si-picker--inline .si-list {")).toBeGreaterThan(
       CSS.indexOf(".si-picker .si-list {"),
