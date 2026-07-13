@@ -38,9 +38,10 @@
       "family": "Euler",
       "order": 1,
       "type": "ancestral + CFG++",
-      "summary": "Euler ancestral with CFG++ rescaling. Anime/creative variety without high-CFG burn.",
-      "good_for": "Anime styles at low CFG (2-4)",
-      "pairs_with": ["normal", "karras"]
+      "summary": "Euler ancestral with CFG++ guidance (Chung et al). CFG++ swaps CFG's off-manifold extrapolation for a manifold-constrained update, so the ancestral noise explores within the data manifold instead of burning — ancestral's detail and variety without the fried look.",
+      "good_for": "Creative variety and texture at low CFG (1-4 — CFG++ needs a low scale; high CFG defeats the point). Anime and illustrative styles, though not anime-only. Reported to shine with detail-weighted schedules (beta57, linear_quadratic), which spend steps at the low-noise end where an ancestral sampler's per-step noise injection gets resolved into detail",
+      "pairs_with": ["normal", "karras", "beta57", "linear_quadratic"],
+      "notes": "Ancestral samplers never converge — the image keeps changing with step count, and much of the appeal is extra texture and seed-to-seed variation rather than higher fidelity. The beta57 / linear_quadratic pairings are an empirical user finding, not a vendor default."
     },
 
     "heun": {

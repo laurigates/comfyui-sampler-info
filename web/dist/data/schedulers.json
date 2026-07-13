@@ -43,8 +43,8 @@
     },
     "linear_quadratic": {
       "year": 2024,
-      "summary": "Linear-then-quadratic spacing. Used by some video diffusion models (LTX-Video).",
-      "good_for": "Video diffusion (LTX-Video and similar)"
+      "summary": "Linear-then-quadratic spacing, from the flow-matching video models. Heavily weighted toward the low-noise end: the linear half of the steps all sit below ~2.5% of max sigma, so most of the budget goes to detail refinement rather than composition.",
+      "good_for": "Video diffusion (LTX-Video and similar), its original home. Also reported to work well on images with the ancestral CFG++ samplers (euler_ancestral_cfg_pp), for the same reason as beta57 — it front-loads the detail end of the schedule; expect strong refinement but little composition exploration"
     },
     "kl_optimal": {
       "year": 2024,
@@ -59,8 +59,8 @@
     },
     "beta57": {
       "year": null,
-      "summary": "The beta schedule at alpha=0.5 / beta=0.7 — beta-distribution sigma spacing preset, biased toward spending steps where these models need them rather than at the extremes.",
-      "good_for": "Recent rectified-flow models such as FLUX and Qwen-Image; strong with euler, dpmpp_2m and ipndm (a common pick on FLUX.1 Krea dev alongside beta)",
+      "summary": "The beta schedule at alpha=0.5 / beta=0.7 (core's beta defaults to 0.6/0.6). Beta-distribution sigma spacing: relative to the uniform simple schedule it takes steps out of the mid-noise range and spends them at the low-noise end, where fine detail is resolved.",
+      "good_for": "Recent rectified-flow models such as FLUX and Qwen-Image; strong with euler, dpmpp_2m and ipndm (a common pick on FLUX.1 Krea dev alongside beta). Also reported to pair well with the ancestral CFG++ samplers (euler_ancestral_cfg_pp) — the extra low-noise steps give an ancestral sampler's per-step noise injection room to resolve into detail",
       "notes": "Ships with the RES4LYF custom-node pack, not ComfyUI core — it is absent from core's SCHEDULER_HANDLERS and only appears in the scheduler list when that pack is installed."
     },
 
