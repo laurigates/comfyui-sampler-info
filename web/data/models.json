@@ -1,0 +1,156 @@
+{
+  "_meta": {
+    "version": 1,
+    "schema": "exact: model-key -> {family, arch, summary, recipe, source, notes}. recipe: {sampler, scheduler (token, or null when the template drives sampling with a dedicated scheduler NODE), scheduler_node (that node's type, or null), steps, cfg}. source: {kind, template}.",
+    "purpose": "The one home for each model family's default sampling recipe. It used to live duplicated in samplers.json and schedulers.json good_for prose — 'Krea 2 Turbo: euler + simple, 8 steps, CFG 1' was written into BOTH euler.good_for and simple.good_for, two copies with no source of truth. Stored once here, cited to the template it came from, and re-verified against that template by `just corpus-check`: if upstream changes the template, the check fails. See .claude/rules/corpus-ground-truth.md.",
+    "not_a_catalogue": "This is authoring and validation infrastructure, not a model index. It carries the handful of families the corpus already makes claims about — enough to keep those claims honest. Nothing in the UI reads it yet."
+  },
+
+  "exact": {
+    "krea2-turbo": {
+      "family": "Krea 2",
+      "arch": "rectified-flow",
+      "summary": "8-step distilled checkpoint. Qwen3VL-4B text encoder, qwen_image_vae — a distinct model from FLUX.1 Krea dev despite the shared name.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": "simple",
+        "scheduler_node": null,
+        "steps": 8,
+        "cfg": 1
+      },
+      "source": { "kind": "vendor-default", "template": "image_krea2_turbo_t2i.json" },
+      "notes": "Secondary guides recommending er_sde for this model contradict the shipped template, which says euler."
+    },
+
+    "krea2-raw": {
+      "family": "Krea 2",
+      "arch": "rectified-flow",
+      "summary": "The undistilled Raw/Base variant of Krea 2 — many more steps and real CFG, unlike the Turbo checkpoint.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": "simple",
+        "scheduler_node": null,
+        "steps": null,
+        "cfg": null
+      },
+      "source": { "kind": "community" },
+      "notes": "ComfyUI ships NO template for the Raw variant, so there is no vendor default to cite and the step/CFG figures are deliberately left null rather than invented. Community reports put it around 52 steps at CFG 3.5-4.5. We know this model less well than the Turbo one, and the schema says so."
+    },
+
+    "flux1-krea-dev": {
+      "family": "FLUX.1 Krea",
+      "arch": "rectified-flow",
+      "summary": "FLUX.1 dev finetuned by Krea. Guidance-distilled, so it runs at CFG 1 with the guidance value baked into the conditioning.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": "simple",
+        "scheduler_node": null,
+        "steps": 20,
+        "cfg": 1
+      },
+      "source": { "kind": "vendor-default", "template": "flux1_krea_dev.json" }
+    },
+
+    "flux2-klein-distilled": {
+      "family": "FLUX.2 Klein",
+      "arch": "rectified-flow",
+      "summary": "The distilled FLUX.2 Klein checkpoint — a few-step model run through the custom-sampling chain.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": null,
+        "scheduler_node": "Flux2Scheduler",
+        "steps": 4,
+        "cfg": 1
+      },
+      "source": { "kind": "vendor-default", "template": "image_flux2_klein_text_to_image.json" },
+      "notes": "The FLUX.2 templates do NOT use a scheduler token: sampling is driven by a dedicated Flux2Scheduler node, so there is no simple/normal/beta to recommend here. Earlier corpus prose claiming 'FLUX.2 Klein with simple/normal' had no basis in what ComfyUI actually ships."
+    },
+
+    "flux2-klein-base": {
+      "family": "FLUX.2 Klein",
+      "arch": "rectified-flow",
+      "summary": "The undistilled FLUX.2 Klein base checkpoint — full step count and real CFG.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": null,
+        "scheduler_node": "Flux2Scheduler",
+        "steps": 20,
+        "cfg": 5
+      },
+      "source": { "kind": "vendor-default", "template": "image_flux2_klein_text_to_image.json" },
+      "notes": "Same template as the distilled variant — it ships both as separate subgraphs."
+    },
+
+    "qwen-image-edit-2511": {
+      "family": "Qwen-Image-Edit",
+      "arch": "rectified-flow",
+      "summary": "Instruction-driven image editing model. The 2511 revision runs at a full step count; the Lightning LoRA variants collapse it to 4 steps at CFG 1.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": "simple",
+        "scheduler_node": null,
+        "steps": 40,
+        "cfg": 3
+      },
+      "source": { "kind": "vendor-default", "template": "image_qwen_image_edit_2511.json" }
+    },
+
+    "wan22-14b-t2v": {
+      "family": "Wan 2.2",
+      "arch": "flow-matching (video)",
+      "summary": "Wan 2.2 14B text-to-video. The shipped template is the Lightning-distilled configuration — 4 steps at CFG 1.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": "simple",
+        "scheduler_node": null,
+        "steps": 4,
+        "cfg": 1
+      },
+      "source": { "kind": "vendor-default", "template": "video_wan2_2_14B_t2v.json" },
+      "notes": "This is the recipe for core's KSampler path. WanVideoWrapper exposes its own scheduler tokens (unipc, dpm++, ...) which are a different widget entirely — see schedulers.json."
+    },
+
+    "wan22-5b-ti2v": {
+      "family": "Wan 2.2",
+      "arch": "flow-matching (video)",
+      "summary": "Wan 2.2 5B text/image-to-video. Undistilled, so it wants a real step count and real CFG.",
+      "recipe": {
+        "sampler": "uni_pc",
+        "scheduler": "simple",
+        "scheduler_node": null,
+        "steps": 20,
+        "cfg": 5
+      },
+      "source": { "kind": "vendor-default", "template": "video_wan2_2_5B_ti2v.json" }
+    },
+
+    "sdxl": {
+      "family": "SDXL",
+      "arch": "eps/v-prediction",
+      "summary": "The legacy latent-diffusion class. Unlike the rectified-flow models it wants a real CFG scale, and karras/sgm_uniform usually beat the plain schedules.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": "normal",
+        "scheduler_node": null,
+        "steps": 25,
+        "cfg": 8
+      },
+      "source": { "kind": "vendor-default", "template": "sdxl_simple_example.json" },
+      "notes": "The template's euler + normal is the conservative starting point ComfyUI ships, not the community's favourite — dpmpp_2m + karras is the usual workhorse on this architecture."
+    },
+
+    "sd15": {
+      "family": "SD 1.5",
+      "arch": "eps/v-prediction",
+      "summary": "The original Stable Diffusion class. Same story as SDXL: real CFG, and karras-family schedules earn their keep.",
+      "recipe": {
+        "sampler": "euler",
+        "scheduler": "normal",
+        "scheduler_node": null,
+        "steps": 20,
+        "cfg": 8
+      },
+      "source": { "kind": "vendor-default", "template": "default.json" }
+    }
+  }
+}

@@ -2,7 +2,10 @@
   "_meta": {
     "version": 1,
     "schema": "exact: token -> {year, family, order, type, summary, good_for, pairs_with, notes, supersedes_by}; prefix: ordered list of {match (regex), family, summary, good_for, pairs_with}; alias: token -> canonical-token reusing that exact entry (same algorithm, different naming scheme). Lookup order: exact, then alias, then first matching prefix. Unknown year is null.",
-    "sources": "Core sampler dates from ComfyUI git history + cited papers. RES4LYF families described at the family level — too many tokens to enumerate 1:1; the handful that are identical to a core sampler under a different name are mapped via `alias`. Contributions welcome via PR."
+    "sources": "Core sampler dates from ComfyUI git history + cited papers. RES4LYF families described at the family level — too many tokens to enumerate 1:1; the handful that are identical to a core sampler under a different name are mapped via `alias`. Contributions welcome via PR.",
+    "source_field": "Optional `source` on any entry records HOW the fact is known: kind ∈ vendor-default (a shipped ComfyUI workflow template — the only machine-checkable one, and it names its `template`) | vendor-doc | pack-provided | community | empirical | paper. Model recipes live in models.json, cited to their template and re-verified by `just corpus-check`. See .claude/rules/corpus-ground-truth.md.",
+    "prefix_namespacing": "RES4LYF namespaces its sampler tokens by RK family (`exponential/res_2s`, `linear/rk4_4s`, `multistep/deis_2m`), so every prefix pattern accepts an optional leading `<family>/`. Without it all ~116 namespaced tokens silently fall through to '(no metadata for this option yet)'.",
+    "coverage_ignore": ["^ALL SAMPLERS$", "^none$"]
   },
 
   "exact": {
@@ -12,7 +15,7 @@
       "order": 1,
       "type": "deterministic",
       "summary": "Simplest first-order ODE solver. The baseline — fast, predictable, slightly soft. Also the default on recent rectified-flow / flow-matching models, whose straighter trajectory makes a first-order solver competitive.",
-      "good_for": "The reference sampler on recent rectified-flow models: Krea 2 Turbo with simple (the shipped ComfyUI template is euler + simple, 8 steps, CFG 1), FLUX.2 Klein with simple/normal (distilled, 4-8 steps at CFG 1-2; the base 9B wants 20-24 steps at CFG 3.5-5), FLUX.1 Krea dev with simple (20 steps, CFG 1) and Qwen-Image-Edit 2511 with simple. On SD1.5/SDXL: quick previews, anime, conservative low-step counts (10-20)",
+      "good_for": "The reference sampler on recent rectified-flow models (the FLUX family, Krea 2, Qwen-Image, Wan) — it is what ComfyUI's own templates ship for nearly all of them, usually with simple. On eps/v-prediction models (SD1.5, SDXL): quick previews, anime, conservative low-step counts (10-20)",
       "pairs_with": ["normal", "simple", "karras", "beta", "beta57"]
     },
     "euler_cfg_pp": {
@@ -39,9 +42,10 @@
       "order": 1,
       "type": "ancestral + CFG++",
       "summary": "Euler ancestral with CFG++ guidance (Chung et al). CFG++ swaps CFG's off-manifold extrapolation for a manifold-constrained update, so the ancestral noise explores within the data manifold instead of burning — ancestral's detail and variety without the fried look.",
-      "good_for": "Creative variety and texture at low CFG (1-4 — CFG++ needs a low scale; high CFG defeats the point). Anime and illustrative styles, though not anime-only. Reported to shine with detail-weighted schedules (beta57, linear_quadratic), which spend steps at the low-noise end where an ancestral sampler's per-step noise injection gets resolved into detail",
+      "good_for": "Creative variety and texture at low CFG (1-4 — CFG++ needs a low scale; high CFG defeats the point). Anime and illustrative styles, though not anime-only. Reported to shine with beta57, whose extra low-noise steps give an ancestral sampler's per-step noise injection room to resolve into detail, and with linear_quadratic — but for the opposite reason: linear_quadratic dwells at the HIGH-noise end, so the injected noise keeps reshaping composition through most of the run",
       "pairs_with": ["normal", "karras", "beta57", "linear_quadratic"],
-      "notes": "Ancestral samplers never converge — the image keeps changing with step count, and much of the appeal is extra texture and seed-to-seed variation rather than higher fidelity. The beta57 / linear_quadratic pairings are an empirical user finding, not a vendor default."
+      "source": { "kind": "empirical" },
+      "notes": "Ancestral samplers never converge — the image keeps changing with step count, and much of the appeal is extra texture and seed-to-seed variation rather than higher fidelity. These pairings are a user finding, not a vendor default. The mechanism cited for each is the schedule's *measured* step allocation (`just corpus-check`), not the one previously assumed: linear_quadratic was described here as detail-weighted, and it is the exact opposite."
     },
 
     "heun": {
@@ -172,7 +176,7 @@
       "order": 2,
       "type": "deterministic multistep",
       "summary": "The default workhorse. Order-2 multistep — reuses prior model evaluations, so very efficient. Converges well at 15-25 steps for most checkpoints, across both eps/v-prediction and rectified-flow architectures.",
-      "good_for": "General-purpose across architectures: SD1.5/SDXL with karras, and recent rectified-flow models such as FLUX and Qwen-Image — FLUX.1 Krea dev with bong_tangent (or beta/beta57), Qwen-Image-Edit 2511 with karras when not using the Lightning LoRA",
+      "good_for": "General-purpose across architectures: SD1.5/SDXL with karras, and recent rectified-flow models such as FLUX and Qwen-Image with beta, beta57 or bong_tangent",
       "pairs_with": ["karras", "exponential", "sgm_uniform", "beta", "beta57", "bong_tangent"]
     },
     "dpmpp_2m_cfg_pp": {
@@ -265,7 +269,7 @@
       "order": "variable",
       "type": "deterministic multistep",
       "summary": "Improved Pseudo-Numerical Diffusion Methods. Valid alternative to dpmpp_2m; less popular.",
-      "good_for": "Worth a try when dpmpp_2m's character doesn't suit a style; same convergence class with subtly different behavior. Holds up well on recent rectified-flow models such as FLUX (e.g. FLUX.1 Krea dev with beta or beta57)",
+      "good_for": "Worth a try when dpmpp_2m's character doesn't suit a style; same convergence class with subtly different behavior. Holds up well on recent rectified-flow models such as FLUX, with beta or beta57",
       "pairs_with": ["karras", "beta", "beta57"]
     },
     "ipndm_v": {
@@ -505,112 +509,112 @@
 
   "prefix": [
     {
-      "match": "^res_\\d+m$",
+      "match": "^(?:[a-z_]+/)?res_\\d+m$",
       "family": "RES (RES4LYF, multistep)",
       "summary": "RES family (Hochbruck-Ostermann exponential RK), multistep variant. The trailing N in res_Nm is the order — higher N reuses more past evaluations.",
       "good_for": "Advanced multistep ODE solving; alternative to dpmpp_Nm. Pairs naturally with the RES4LYF schedules (bong_tangent, beta57) that ship alongside it",
       "pairs_with": ["karras", "exponential", "bong_tangent", "beta57"]
     },
     {
-      "match": "^res_\\d+s",
+      "match": "^(?:[a-z_]+/)?res_\\d+s",
       "family": "RES (RES4LYF, single-step exponential RK)",
       "summary": "RES family single-step exponential Runge-Kutta. The N in res_Ns is the stage count — more stages = more model evaluations per step = higher accuracy per step.",
       "good_for": "High-accuracy per step at low step counts; very expensive at high stage counts (8s, 10s, 15s, 16s). Pairs naturally with the RES4LYF schedules (bong_tangent, beta57) that ship alongside it",
       "pairs_with": ["karras", "exponential", "bong_tangent", "beta57"]
     },
     {
-      "match": "^dpmpp_(2|3|sde_2)s$",
+      "match": "^(?:[a-z_]+/)?dpmpp_(2|3|sde_2)s$",
       "family": "DPM-Solver++ (RES4LYF extended single-step)",
       "summary": "RES4LYF's exposed single-step DPM++ variants. Higher-order than core's dpmpp_2s_ancestral.",
       "good_for": "Specialized DPM++ exploration",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^dpmpp_\\d+m$",
+      "match": "^(?:[a-z_]+/)?dpmpp_\\d+m$",
       "family": "DPM-Solver++ (multistep)",
       "summary": "Deterministic multistep DPM-Solver++; the N in dpmpp_Nm is the order. dpmpp_2m has a dedicated entry — this covers the higher-order RES4LYF variants (e.g. dpmpp_3m) that reuse past evaluations like core dpmpp_2m.",
       "good_for": "Higher-order DPM++ multistep at 25+ steps; the non-SDE sibling of dpmpp_3m_sde. These come from RES4LYF, so its schedules (bong_tangent, beta57) are available alongside them",
       "pairs_with": ["karras", "exponential", "sgm_uniform", "beta57"]
     },
     {
-      "match": "^etdrk\\d",
+      "match": "^(?:[a-z_]+/)?etdrk\\d",
       "family": "ETD-RK (Exponential Time Differencing Runge-Kutta)",
       "summary": "Cox-Matthews ETD-RK family. Treats stiff linear part exactly via matrix exponential.",
       "good_for": "Stiff regions of the diffusion trajectory; experimental",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^lawson",
+      "match": "^(?:[a-z_]+/)?lawson",
       "family": "Lawson (exponential RK)",
       "summary": "Lawson exponential Runge-Kutta — generalized exponential integrators.",
       "good_for": "Experimental; higher-order versions (lawson4_4s) are expensive",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^abnorsett",
+      "match": "^(?:[a-z_]+/)?abnorsett",
       "family": "Adams-Bashforth-Nørsett",
       "summary": "Adams-Bashforth predictor with Nørsett correction. Hybrid multistep family.",
       "good_for": "Predictor-corrector exploration in RES4LYF; worth a try when predictor-only solvers like ipndm drift on Flux/SD3",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^deis_\\d+m$",
+      "match": "^(?:[a-z_]+/)?deis_\\d+m$",
       "family": "DEIS (RES4LYF multistep)",
       "summary": "DEIS family with higher-order multistep variants exposed by RES4LYF.",
       "good_for": "Few-step regimes",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^pec\\d",
+      "match": "^(?:[a-z_]+/)?pec\\d",
       "family": "Predictor-Evaluator-Corrector (PEC)",
       "summary": "Hybrid PEC iteration — predict, then iteratively correct.",
       "good_for": "PEC iteration helps when a predictor-only solver diverges; worth a try at low step counts on Flux/SD3",
       "pairs_with": ["karras"]
     },
     {
-      "match": "^(ralston|midpoint|heun)_\\d+s$",
+      "match": "^(?:[a-z_]+/)?(ralston|midpoint|heun)_\\d+s$",
       "family": "Classical Runge-Kutta (low-order)",
       "summary": "Classical low-order Runge-Kutta variants. Educational / baseline.",
       "good_for": "Useful for understanding sampler theory or as a baseline reference; dedicated diffusion solvers usually win on quality-per-step for actual renders",
       "pairs_with": ["normal", "simple"]
     },
     {
-      "match": "^(houwen-wray|kutta|ssprk\\d|rk\\d+|bogacki-shampine|dormand-prince|tsi)_\\d+s$",
+      "match": "^(?:[a-z_]+/)?(houwen-wray|kutta|ssprk\\d|rk\\d+|bogacki-shampine|dormand-prince|tsi)_\\d+s$",
       "family": "Classical Runge-Kutta",
       "summary": "Classical Runge-Kutta family (rk4, rk5, rk38, Dormand-Prince, Bogacki-Shampine, etc). Mathematically pristine but not specialized for diffusion.",
       "good_for": "Reference / curiosity; expensive at high stage counts",
       "pairs_with": ["normal", "karras"]
     },
     {
-      "match": "^verner",
+      "match": "^(?:[a-z_]+/)?verner",
       "family": "Classical Runge-Kutta (Verner, very high-order)",
       "summary": "Verner's high-order explicit Runge-Kutta methods (e.g. verner_13s, verner_robust_16s). Many stages per step for very high formal order — accurate but among the most expensive samplers per step.",
       "good_for": "Reference-quality curiosity; the 13–16 stage counts mean 13–16 model evaluations per step, so rarely worth it over dpmpp_2m for real renders",
       "pairs_with": ["normal", "karras"]
     },
     {
-      "match": "^gauss-legendre",
+      "match": "^(?:[a-z_]+/)?gauss-legendre",
       "family": "Implicit RK (Gauss-Legendre)",
       "summary": "Implicit Runge-Kutta — Gauss-Legendre points (including the diagonal `_diag_` variant). Highest order per stage, but each step requires an iterative solve.",
       "good_for": "Maximum accuracy; very slow",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^radau",
+      "match": "^(?:[a-z_]+/)?radau",
       "family": "Implicit RK (Radau)",
       "summary": "Implicit Runge-Kutta — Radau points. L-stable, good for stiff problems.",
       "good_for": "Stiff trajectories; very slow",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^lobatto",
+      "match": "^(?:[a-z_]+/)?lobatto",
       "family": "Implicit RK (Lobatto)",
       "summary": "Implicit Runge-Kutta — Lobatto points. Includes both endpoints in the stencil.",
       "good_for": "Stiff trajectories; slow",
       "pairs_with": ["karras", "exponential"]
     },
     {
-      "match": "^(crouzeix|kraaijevanger|qin_zhang|pareschi_russo|irk_exp_diag)",
+      "match": "^(?:[a-z_]+/)?(crouzeix|kraaijevanger|qin_zhang|pareschi_russo|irk_exp_diag)",
       "family": "Implicit / IMEX RK",
       "summary": "Diagonally-implicit and IMEX Runge-Kutta variants. Cheaper than fully-implicit Gauss-Legendre/Radau/Lobatto.",
       "good_for": "Compromise between accuracy and per-step cost; experimental",

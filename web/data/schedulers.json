@@ -1,25 +1,30 @@
 {
   "_meta": {
     "version": 1,
-    "schema": "exact: token -> {year, summary, good_for, notes}. Year is approximate (paper / ComfyUI integration)."
+    "schema": "exact: token -> {year, summary, good_for, notes, source}. Year is approximate (paper / ComfyUI integration).",
+    "source_field": "Optional `source` records HOW the fact is known: kind ∈ vendor-default | vendor-doc | pack-provided | community | empirical | paper. Model recipes live in models.json, cited to the shipped template they came from. See .claude/rules/corpus-ground-truth.md.",
+    "behavioural_claims": "Any statement about WHERE a schedule spends its steps is measured, never remembered — `just corpus-check` computes the real sigma curve and prints the step allocation across noise bands beside every entry that makes such a claim. Two entries here (beta57, linear_quadratic) previously described the opposite of what they do.",
+    "coverage_ignore": ["^ALL SCHEDULERS$"]
   },
-
   "exact": {
     "simple": {
       "year": 2022,
       "summary": "Naive equally-spaced sigma schedule. The plainest scheduler — used with samplers that bring their own pacing, and the reference schedule for recent rectified-flow models.",
-      "good_for": "The standard pick on recent rectified-flow models — euler + simple is the setup ComfyUI's own templates ship for Krea 2 Turbo (8 steps, CFG 1), FLUX.1 Krea dev (20 steps, CFG 1) and the distilled FLUX.2 Klein (4-8 steps, CFG 1-2), and the reference pairing for Qwen-Image-Edit 2511. Also useful when a sampler brings its own pacing (dpm_adaptive, dpm_fast). On eps/v-prediction models (SD1.5, SDXL) karras or sgm_uniform usually beat it",
-      "notes": "Krea 2 (Qwen3VL-4B text encoder, qwen_image_vae) is a distinct model from FLUX.1 Krea dev, despite the shared name — both default to euler + simple, but Krea 2 Turbo is an 8-step distilled checkpoint. The Raw/Base variant wants far more steps (~52) at CFG ~3.5-4.5; ComfyUI ships no Raw template, so treat those figures as community guidance rather than an official default."
+      "good_for": "The standard pick on recent rectified-flow models — euler + simple is what ComfyUI's own templates ship for most of the FLUX / Krea / Qwen-Image / Wan family. Also useful when a sampler brings its own pacing (dpm_adaptive, dpm_fast). On eps/v-prediction models (SD1.5, SDXL) karras or sgm_uniform usually beat it",
+      "notes": "Per-model step counts and CFG values live in models.json, cited to the template they came from, so they are stated once and re-verified against upstream rather than copied into prose here."
     },
     "normal": {
       "year": 2022,
       "summary": "Standard scheduler matching the model's training noise schedule. Conservative default.",
-      "good_for": "Safe starting point that matches the model's training, whatever the architecture; a fine first pick before trying karras or sgm_uniform on eps/v-prediction models, and a common alternative to simple with euler on the FLUX family (including the base FLUX.2 Klein 9B at 20-24 steps, CFG 3.5-5)"
+      "good_for": "Safe starting point that matches the model's training, whatever the architecture; a fine first pick before trying karras or sgm_uniform on eps/v-prediction models, and a common alternative to simple with euler on the FLUX family"
     },
     "karras": {
       "year": 2022,
       "summary": "Karras EDM noise schedule (Karras et al, 'Elucidating the Design Space of Diffusion-Based Generative Models'). The most popular general-purpose schedule for eps/v-prediction models (SD1.5, SDXL).",
-      "good_for": "Default workhorse for dpmpp_2m, dpmpp_2m_sde, euler, heun on SD1.5/SDXL; still a good pairing with dpmpp_2m on Qwen-Image-Edit 2511 when not using the Lightning LoRA. Recent rectified-flow models more often want simple, normal or beta"
+      "good_for": "Default workhorse for dpmpp_2m, dpmpp_2m_sde, euler, heun on SD1.5/SDXL; still a good pairing with dpmpp_2m on recent rectified-flow models such as Qwen-Image. Those newer models more often want simple, normal or beta",
+      "source": {
+        "kind": "paper"
+      }
     },
     "exponential": {
       "year": 2022,
@@ -39,31 +44,40 @@
     "beta": {
       "year": 2024,
       "summary": "Beta-distribution spaced schedule. Concentrates steps where the model needs them most.",
-      "good_for": "A common pick on recent rectified-flow models such as the FLUX family (e.g. euler, dpmpp_2m or ipndm on FLUX.1 Krea dev); on SD1.5/SDXL, reach for it when karras/exponential look off"
+      "good_for": "A common pick on recent rectified-flow models such as the FLUX family (with euler, dpmpp_2m or ipndm); on SD1.5/SDXL, reach for it when karras/exponential look off"
     },
     "linear_quadratic": {
       "year": 2024,
-      "summary": "Linear-then-quadratic spacing, from the flow-matching video models. Heavily weighted toward the low-noise end: the linear half of the steps all sit below ~2.5% of max sigma, so most of the budget goes to detail refinement rather than composition.",
-      "good_for": "Video diffusion (LTX-Video and similar), its original home. Also reported to work well on images with the ancestral CFG++ samplers (euler_ancestral_cfg_pp), for the same reason as beta57 — it front-loads the detail end of the schedule; expect strong refinement but little composition exploration"
+      "summary": "Linear-then-quadratic spacing, from the flow-matching video models. Heavily weighted toward the HIGH-noise end: the linear half of the steps sit within ~2.5% of maximum sigma, so most of the budget goes to composition, and the low-noise detail end is crossed in a handful of large jumps.",
+      "good_for": "Video diffusion (LTX-Video and similar), its original home. Also reported to work well on images with the ancestral CFG++ samplers (euler_ancestral_cfg_pp) — an ancestral sampler keeps injecting noise, and dwelling at high sigma lets it keep reshaping composition. Expect exploration, not refinement",
+      "notes": "Measured, not assumed: at 20 steps the first 11 sigmas are all above 14.0 of a 14.6 maximum. This entry previously claimed the opposite (\"heavily weighted toward the low-noise end\") — the source builds sub-2.5% values and then inverts them with `1.0 - x`, and the inversion was missed. Re-check with `just corpus-check`."
     },
     "kl_optimal": {
       "year": 2024,
       "summary": "KL-divergence-optimal schedule. Theoretically optimal noise placement under a KL objective.",
-      "good_for": "Theoretically-motivated alternative; mostly experimental"
+      "good_for": "Theoretically-motivated alternative; mostly experimental",
+      "source": {
+        "kind": "paper"
+      }
     },
     "bong_tangent": {
       "year": 2024,
       "summary": "RES4LYF custom schedule using a tangent-based pacing curve. Tuned for the RES4LYF RK sampler family.",
-      "good_for": "Pair with RES4LYF samplers (res_Ns, rk_*, lawson_*, etc.); also a well-liked pairing with dpmpp_2m on FLUX.1 Krea dev",
-      "notes": "Ships with the RES4LYF custom-node pack, not ComfyUI core — it only appears in the scheduler list when that pack is installed."
+      "good_for": "Pair with RES4LYF samplers (res_Ns, rk_*, lawson_*, etc.); also a well-liked pairing with dpmpp_2m on the FLUX family",
+      "notes": "Ships with the RES4LYF custom-node pack, not ComfyUI core — it only appears in the scheduler list when that pack is installed.",
+      "source": {
+        "kind": "pack-provided"
+      }
     },
     "beta57": {
       "year": null,
       "summary": "The beta schedule at alpha=0.5 / beta=0.7 (core's beta defaults to 0.6/0.6). Beta-distribution sigma spacing: relative to the uniform simple schedule it takes steps out of the mid-noise range and spends them at the low-noise end, where fine detail is resolved.",
-      "good_for": "Recent rectified-flow models such as FLUX and Qwen-Image; strong with euler, dpmpp_2m and ipndm (a common pick on FLUX.1 Krea dev alongside beta). Also reported to pair well with the ancestral CFG++ samplers (euler_ancestral_cfg_pp) — the extra low-noise steps give an ancestral sampler's per-step noise injection room to resolve into detail",
-      "notes": "Ships with the RES4LYF custom-node pack, not ComfyUI core — it is absent from core's SCHEDULER_HANDLERS and only appears in the scheduler list when that pack is installed."
+      "good_for": "Recent rectified-flow models such as FLUX and Qwen-Image; strong with euler, dpmpp_2m and ipndm. Also reported to pair well with the ancestral CFG++ samplers (euler_ancestral_cfg_pp) — the extra low-noise steps give an ancestral sampler's per-step noise injection room to resolve into detail",
+      "notes": "Ships with the RES4LYF custom-node pack, not ComfyUI core — RES4LYF registers it as `beta_scheduler(alpha=0.5, beta=0.7)` against core's 0.6/0.6 defaults, so it is absent from core's SCHEDULER_HANDLERS and only appears when that pack is installed. The low-noise weighting is measured: at 20 steps it puts 11 steps below 10% of maximum sigma against simple's 9, taking them out of the mid-noise range.",
+      "source": {
+        "kind": "pack-provided"
+      }
     },
-
     "unipc": {
       "year": 2024,
       "summary": "WanVideoWrapper's default flow-matching scheduler. Couples UniPC integration with Wan's sigma trajectory — picks both the algorithm and the schedule in one widget.",
@@ -177,7 +191,6 @@
       "good_for": "Wan2.x when standard unipc results look stale; less battle-tested than unipc",
       "notes": "verify"
     },
-
     "FlowMatchDiscreteScheduler": {
       "year": 2024,
       "summary": "HunyuanVideoWrapper's default scheduler. Discrete-time flow-matching Euler — the simplest, most predictable choice.",
@@ -203,7 +216,6 @@
       "summary": "HunyuanVideoWrapper using Diffusers' UniPC multistep predictor-corrector.",
       "good_for": "HunyuanVideo at lower step counts (10-20) when you want UniPC convergence behavior"
     },
-
     "Default for model": {
       "year": null,
       "summary": "HiDream-Sampler passthrough — uses whichever scheduler the loaded model recommends. The least surprising option when you're unsure.",
@@ -230,6 +242,5 @@
       "good_for": "HiDream when Karras Euler looks harsh; exponential pacing tends to be gentler"
     }
   },
-
   "prefix": []
 }
