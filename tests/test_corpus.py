@@ -235,7 +235,7 @@ def test_vendor_default_recipes_are_complete():
     for token, entry in models.get("exact", {}).items():
         recipe = entry.get("recipe") or {}
         if not recipe.get("scheduler") and not recipe.get("scheduler_node"):
-            problems.append(f"exact[{token}].recipe names neither a scheduler nor a scheduler_node")
+            problems.append(f"exact[{token}].recipe names no scheduler and no scheduler_node")
         if (entry.get("source") or {}).get("kind") != "vendor-default":
             continue
         for field in ("sampler", "steps", "cfg"):
