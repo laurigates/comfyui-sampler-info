@@ -183,15 +183,18 @@ def check_recipes(report: Report, probe: dict[str, Any], models: dict[str, Any])
 
 
 def matches(recipe: dict[str, Any], row: dict[str, Any]) -> bool:
-    return all(
-        recipe.get(field) == row.get(field) for field in ("sampler", "scheduler", "steps", "cfg")
-    )
+    # `scheduler_node` is compared too: a template driven by a model-specific
+    # scheduler node (Flux2Scheduler, LTXVScheduler) has no scheduler *token* at
+    # all, and a corpus entry claiming one for it would be an invention that a
+    # token-only comparison would happily wave through.
+    fields = ("sampler", "scheduler", "scheduler_node", "steps", "cfg")
+    return all(recipe.get(field) == row.get(field) for field in fields)
 
 
 def fmt(recipe: dict[str, Any]) -> str:
+    schedule = recipe.get("scheduler") or f"{recipe.get('scheduler_node')} node"
     return (
-        f"{recipe.get('sampler')}/{recipe.get('scheduler')}"
-        f"/{recipe.get('steps')} steps/CFG {recipe.get('cfg')}"
+        f"{recipe.get('sampler')}/{schedule}/{recipe.get('steps')} steps/CFG {recipe.get('cfg')}"
     )
 
 

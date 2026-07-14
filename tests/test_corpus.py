@@ -212,17 +212,33 @@ def test_model_recipes_resolve_against_sampler_and_scheduler_corpora():
     assert not unknown, "models.json recipes reference unknown tokens: " + ", ".join(unknown)
 
 
-def test_models_recipes_are_complete():
-    """A recipe is only useful if it is whole — sampler, scheduler, steps, and cfg."""
+def test_vendor_default_recipes_are_complete():
+    """A `vendor-default` recipe must be whole — it is checked against a real template.
+
+    Only vendor-defaults are held to this. A `community` or `empirical` entry is
+    allowed to leave `steps`/`cfg` null: krea2-raw ships no ComfyUI template, so
+    inventing a step count to fill the field would be exactly the fabrication
+    this schema exists to prevent. A null says "we don't know"; the label says
+    how well we know the rest.
+
+    The schedule may be named by `scheduler` (a token) OR by `scheduler_node`
+    (a model-specific node like Flux2Scheduler, where no token exists) — but one
+    of the two must be there, or the recipe names no schedule at all.
+    """
     models_path = CORPUS_DIR / "models.json"
     if not models_path.exists():
         pytest.skip("no models.json yet")
     with open(models_path) as f:
         models = json.load(f)
-    incomplete = []
+
+    problems = []
     for token, entry in models.get("exact", {}).items():
         recipe = entry.get("recipe") or {}
-        for field in ("sampler", "scheduler", "steps", "cfg"):
+        if not recipe.get("scheduler") and not recipe.get("scheduler_node"):
+            problems.append(f"exact[{token}].recipe names neither a scheduler nor a scheduler_node")
+        if (entry.get("source") or {}).get("kind") != "vendor-default":
+            continue
+        for field in ("sampler", "steps", "cfg"):
             if recipe.get(field) is None:
-                incomplete.append(f"exact[{token}].recipe.{field}")
-    assert not incomplete, "models.json recipes missing fields: " + ", ".join(incomplete)
+                problems.append(f"exact[{token}].recipe.{field} is null on a vendor-default")
+    assert not problems, "models.json recipe problems: " + "; ".join(problems)

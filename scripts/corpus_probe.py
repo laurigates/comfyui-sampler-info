@@ -65,18 +65,26 @@ def band_of(fraction: float) -> str:
 
 
 def probe_templates(templates_dir: Path, sampler_tokens: set[str]) -> list[dict[str, Any]]:
-    """Extract the KSampler recipe from every shipped workflow template.
+    """Extract the sampling recipe from every shipped workflow template.
 
-    Two things make this less trivial than it looks, and both bit us:
+    Three things make this less trivial than it looks, and all three bit us:
 
-    - The KSampler is often NOT a top-level node. In `image_krea2_turbo_t2i`
-      and `flux1_krea_dev` it lives under `definitions.subgraphs[].nodes`; a
+    - The sampler is often NOT a top-level node. In `image_krea2_turbo_t2i` and
+      `flux1_krea_dev` it lives under `definitions.subgraphs[].nodes`; a
       top-level-only scan finds nothing and reads as "no sampler configured"
       when the template is in fact authoritative.
-    - `widgets_values` is a positional list with no names. Rather than hardcode
-      an index, locate the sampler token by *value* (it must be a known sampler
-      token) and read the rest relative to it: the scheduler is the next string,
-      and steps/cfg are the two numbers immediately before.
+    - `widgets_values` is a positional list with no names, so nothing is read by
+      a hardcoded index — the sampler is located by *value* (it must be a known
+      sampler token) and everything else is read relative to it.
+    - **Half the modern templates don't use a `KSampler` at all.** 82 of them
+      build the custom-sampling chain instead (`KSamplerSelect` +
+      a `*Scheduler` node + `CFGGuider`/`BasicGuider` + `SamplerCustomAdvanced`),
+      where the recipe is spread across four nodes. A KSampler-only scan returns
+      a half-filled row — sampler `euler`, scheduler `None` — which is worse
+      than no row: it looks like an answer.
+
+    A recipe is emitted only when it is *whole*. Everything else is counted, not
+    guessed at.
     """
     rows: list[dict[str, Any]] = []
     for path in sorted(templates_dir.glob("*.json")):
@@ -86,19 +94,108 @@ def probe_templates(templates_dir: Path, sampler_tokens: set[str]) -> list[dict[
             continue
         if not isinstance(doc, dict):
             continue
-        for node, container in iter_nodes(doc):
-            recipe = recipe_from_widgets(node.get("widgets_values"), sampler_tokens)
-            if recipe is None:
-                continue
-            rows.append(
-                {
-                    "template": path.name,
-                    "node_type": node.get("type"),
-                    "container": container,
-                    **recipe,
-                }
-            )
+        for container, nodes in group_by_container(doc).items():
+            for recipe in recipes_in(nodes, sampler_tokens):
+                rows.append({"template": path.name, "container": container, **recipe})
     return rows
+
+
+def recipes_in(nodes: list[dict[str, Any]], sampler_tokens: set[str]):
+    """Yield every complete recipe in one graph container, in either shape."""
+    for node in nodes:
+        recipe = recipe_from_widgets(node.get("widgets_values"), sampler_tokens)
+        if recipe is not None:
+            yield {"shape": "ksampler", "node_type": node.get("type"), **recipe}
+
+    chain = recipe_from_custom_sampling(nodes, sampler_tokens)
+    if chain is not None:
+        yield chain
+
+
+def recipe_from_custom_sampling(
+    nodes: list[dict[str, Any]], sampler_tokens: set[str]
+) -> dict[str, Any] | None:
+    """Reassemble a recipe from the custom-sampling node chain.
+
+    The sampler comes from `KSamplerSelect`, the step count from whichever
+    `*Scheduler` node the template uses, and the CFG from `CFGGuider`. Only
+    `BasicScheduler` exposes a scheduler *token*; the model-specific ones
+    (`Flux2Scheduler`, `LTXVScheduler`, …) ARE the schedule — there is no token,
+    and recording `simple` for them would be an invention. So the node type is
+    reported instead, and the token is left null.
+
+    `BasicGuider` (no CFG widget) means guidance is baked into the model, not
+    dialed at sample time — reported as cfg 1, which is what a KSampler-shaped
+    equivalent would use.
+    """
+    select = find_node(nodes, lambda t: t == "KSamplerSelect")
+    if select is None:
+        return None
+    sampler = first(select.get("widgets_values"), str)
+    if sampler not in sampler_tokens:
+        return None
+
+    scheduler_node = find_node(nodes, lambda t: t.endswith("Scheduler"))
+    if scheduler_node is None:
+        return None
+    widgets = scheduler_node.get("widgets_values")
+    node_type = scheduler_node.get("type")
+    if node_type == "BasicScheduler":
+        # [scheduler_token, steps, denoise]
+        scheduler, steps = first(widgets, str), first(widgets, (int, float))
+    else:
+        scheduler, steps = None, first(widgets, (int, float))
+    if steps is None:
+        return None
+
+    guider = find_node(nodes, lambda t: t in ("CFGGuider", "BasicGuider"))
+    if guider is None:
+        return None
+    cfg = (
+        1
+        if guider.get("type") == "BasicGuider"
+        else first(guider.get("widgets_values"), (int, float))
+    )
+    if cfg is None:
+        return None
+
+    return {
+        "shape": "custom-sampling",
+        "node_type": node_type,
+        "sampler": sampler,
+        "scheduler": scheduler,
+        "scheduler_node": node_type,
+        "steps": steps,
+        "cfg": cfg,
+    }
+
+
+def find_node(nodes: list[dict[str, Any]], predicate) -> dict[str, Any] | None:
+    return next((n for n in nodes if predicate(str(n.get("type")))), None)
+
+
+def first(widgets: Any, types) -> Any:
+    """First widget value of the given type — bools are not numbers."""
+    if not isinstance(widgets, list):
+        return None
+    return next(
+        (v for v in widgets if isinstance(v, types) and not isinstance(v, bool)),
+        None,
+    )
+
+
+def group_by_container(doc: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
+    """Group a template's nodes by the graph they live in.
+
+    The custom-sampling chain is only a recipe when its parts share a graph —
+    a `KSamplerSelect` in one subgraph and a `CFGGuider` in another are two
+    different pipelines, and splicing them would fabricate a recipe that no
+    template ships.
+    """
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for node, container in iter_nodes(doc):
+        groups.setdefault(container, []).append(node)
+    return groups
 
 
 def iter_nodes(doc: dict[str, Any]):
@@ -127,7 +224,15 @@ def iter_nodes(doc: dict[str, Any]):
 
 
 def recipe_from_widgets(widgets: Any, sampler_tokens: set[str]) -> dict[str, Any] | None:
-    """Read {sampler, scheduler, steps, cfg} out of a positional widget vector."""
+    """Read {sampler, scheduler, steps, cfg} out of a KSampler's positional widget vector.
+
+    Order is `[seed, control_after_generate, steps, cfg, sampler_name,
+    scheduler, denoise]`, but nothing is read by index: the sampler is found by
+    *value*, the scheduler is the next string after it, and steps/cfg are the
+    last two numbers before it. That survives the widget-order variations across
+    KSampler's relatives. An incomplete read yields None — a half-filled recipe
+    is worse than none, because it looks like an answer.
+    """
     if not isinstance(widgets, list):
         return None
     idx = next(
@@ -136,11 +241,17 @@ def recipe_from_widgets(widgets: Any, sampler_tokens: set[str]) -> dict[str, Any
     )
     if idx is None:
         return None
-    after = widgets[idx + 1 :]
-    scheduler = next((v for v in after if isinstance(v, str)), None)
+    scheduler = next((v for v in widgets[idx + 1 :] if isinstance(v, str)), None)
     numbers = [v for v in widgets[:idx] if isinstance(v, (int, float)) and not isinstance(v, bool)]
-    steps, cfg = (numbers[-2], numbers[-1]) if len(numbers) >= 2 else (None, None)
-    return {"sampler": widgets[idx], "scheduler": scheduler, "steps": steps, "cfg": cfg}
+    if scheduler is None or len(numbers) < 2:
+        return None
+    return {
+        "sampler": widgets[idx],
+        "scheduler": scheduler,
+        "scheduler_node": None,
+        "steps": numbers[-2],
+        "cfg": numbers[-1],
+    }
 
 
 def probe_tokens(object_info: dict[str, Any], core: dict[str, set[str]]) -> dict[str, Any]:
