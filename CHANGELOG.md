@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.16](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.15...comfyui-sampler-info-v0.1.16) (2026-07-14)
+
+
+### Features
+
+* **corpus:** add ground-truth probe + check for corpus facts ([#79](https://github.com/laurigates/comfyui-sampler-info/issues/79)) ([f8b5b0b](https://github.com/laurigates/comfyui-sampler-info/commit/f8b5b0bfb3d37a399428dd666ab9f93b8ae9c98b))
+
+
+### Bug Fixes
+
+* **corpus:** store model recipes once, verified against ComfyUI's templates ([#80](https://github.com/laurigates/comfyui-sampler-info/issues/80)) ([3bc0463](https://github.com/laurigates/comfyui-sampler-info/commit/3bc04638321376e5853fa074401795aadbdb7ce5))
+
 ## [0.1.15](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.14...comfyui-sampler-info-v0.1.15) (2026-07-13)
 
 
