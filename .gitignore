@@ -24,5 +24,10 @@ Thumbs.db
 TODO.local.md
 NOTES.local.md
 
+# Corpus ground truth — regenerated on demand from a live ComfyUI host by
+# `just corpus-check`. Never committed: a snapshot of someone else's install
+# would rot into a fake source of truth.
+tmp/
+
 # Blueprint work-orders (task-specific, may contain sensitive details)
 docs/blueprint/work-orders/
