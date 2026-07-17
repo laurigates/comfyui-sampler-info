@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.17](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.16...comfyui-sampler-info-v0.1.17) (2026-07-17)
+
+
+### Bug Fixes
+
+* **registry:** exclude dev scripts from tarball, attribute bundled kit, guard scan surface ([#84](https://github.com/laurigates/comfyui-sampler-info/issues/84)) ([2657385](https://github.com/laurigates/comfyui-sampler-info/commit/2657385cdcee64eb9637421a1b60a7a4600ecd3e))
+
 ## [0.1.16](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.15...comfyui-sampler-info-v0.1.16) (2026-07-14)
 
 
