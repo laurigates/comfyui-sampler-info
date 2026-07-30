@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.18](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.17...comfyui-sampler-info-v0.1.18) (2026-07-30)
+
+
+### Features
+
+* **assets:** restyle the banner to the vector family ([#89](https://github.com/laurigates/comfyui-sampler-info/issues/89)) ([5913c7c](https://github.com/laurigates/comfyui-sampler-info/commit/5913c7c31ba2e4c3d2841bf51c1d4bee110d46c5))
+
 ## [0.1.17](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.16...comfyui-sampler-info-v0.1.17) (2026-07-17)
 
 
