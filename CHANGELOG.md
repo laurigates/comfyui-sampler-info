@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.19](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.18...comfyui-sampler-info-v0.1.19) (2026-07-30)
+
+
+### Bug Fixes
+
+* **assets:** restore the blue sub-family accent on the banner ([#91](https://github.com/laurigates/comfyui-sampler-info/issues/91)) ([9e4452f](https://github.com/laurigates/comfyui-sampler-info/commit/9e4452fa0aa32a521d8e24d5beb6c57d1b9dac3c))
+
 ## [0.1.18](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.17...comfyui-sampler-info-v0.1.18) (2026-07-30)
 
 
