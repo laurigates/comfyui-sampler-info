@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.20](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.19...comfyui-sampler-info-v0.1.20) (2026-08-04)
+
+
+### Bug Fixes
+
+* **deps:** bump @laurigates/comfy-modal-kit ^0.7.0 -&gt; ^0.10.0 ([0bbcbb0](https://github.com/laurigates/comfyui-sampler-info/commit/0bbcbb0c3a554defa793605de22b7c9270b7c3a3))
+* **deps:** bump @laurigates/comfy-modal-kit to ^0.10.0 (toast-tap dismisses modal) ([#93](https://github.com/laurigates/comfyui-sampler-info/issues/93)) ([0bbcbb0](https://github.com/laurigates/comfyui-sampler-info/commit/0bbcbb0c3a554defa793605de22b7c9270b7c3a3))
+
 ## [0.1.19](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.18...comfyui-sampler-info-v0.1.19) (2026-07-30)
 
 
