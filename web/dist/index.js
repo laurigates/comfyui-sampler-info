@@ -1483,6 +1483,7 @@ export {
   readSiblingValue,
   rankOptions,
   pairsWith,
+  openPicker,
   lookup,
   compileCorpus,
   CSS2 as CSS

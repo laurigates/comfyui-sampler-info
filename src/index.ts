@@ -1135,7 +1135,10 @@ function commitWidgetValue(widget: PatchedWidget, node: SamplerNode | null, valu
   app.graph?.setDirtyCanvas?.(true, true);
 }
 
-function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
+// Exported for the DOM-level suite, which drives the real picker rather than a
+// stand-in. Not part of the runtime API — the extension reaches it through
+// patchWidgetPointer.
+export function openPicker(widget: PatchedWidget, node: SamplerNode | null): void {
   ensureStyleOnce(STYLE_ID, CSS);
   const values = resolveComboValues(widget.options?.values, widget, app.canvas?.current_node);
   if (!values.length) return;
