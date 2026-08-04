@@ -19,6 +19,6 @@
     "knip": "^5.0.0"
   },
   "dependencies": {
-    "@laurigates/comfy-modal-kit": "^0.7.0"
+    "@laurigates/comfy-modal-kit": "^0.10.0"
   }
 }
