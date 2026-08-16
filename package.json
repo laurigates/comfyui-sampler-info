@@ -20,6 +20,6 @@
     "vitest": "^4.1.7"
   },
   "dependencies": {
-    "@laurigates/comfy-modal-kit": "^0.10.0"
+    "@laurigates/comfy-modal-kit": "^0.13.0"
   }
 }
