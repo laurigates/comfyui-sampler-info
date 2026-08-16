@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.21](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.20...comfyui-sampler-info-v0.1.21) (2026-08-16)
+
+
+### Features
+
+* **corpus:** describe the 33 tokens coverage reported as undescribed ([#99](https://github.com/laurigates/comfyui-sampler-info/issues/99)) ([28738c0](https://github.com/laurigates/comfyui-sampler-info/commit/28738c05518f86c0cbf008c1bfe0a8da92aa12fc)), closes [#81](https://github.com/laurigates/comfyui-sampler-info/issues/81)
+
+
+### Bug Fixes
+
+* **corpus:** sd15 cites a template upstream archived, and gate that in CI ([#100](https://github.com/laurigates/comfyui-sampler-info/issues/100)) ([8abb2d3](https://github.com/laurigates/comfyui-sampler-info/commit/8abb2d3d1418442fca70f2c37506bef0ef5f3121))
+
+
+### Miscellaneous
+
+* **ci:** guard registry-health against closing on Pending; drop duplicate Renovate runner ([#97](https://github.com/laurigates/comfyui-sampler-info/issues/97)) ([4df0350](https://github.com/laurigates/comfyui-sampler-info/commit/4df0350714854c9396840d2ec13049a9a33e6d8d))
+
 ## [0.1.20](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.19...comfyui-sampler-info-v0.1.20) (2026-08-04)
 
 
