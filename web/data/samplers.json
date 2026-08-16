@@ -499,15 +499,120 @@
       "summary": "Diffusers-naming for DPM-Solver single-step. Single-step variant evaluates the model twice per step rather than reusing past evaluations.",
       "good_for": "FluxTrainer compatibility; trades efficiency for slightly different convergence character",
       "pairs_with": ["karras", "exponential"]
+    },
+
+    "rk_beta": {
+      "year": null,
+      "family": "RES4LYF RK engine",
+      "order": "variable",
+      "type": "generic dispatcher (stochastic by default)",
+      "summary": "Not a method of its own — RES4LYF's current Runge-Kutta engine exposed as a plain sampler entry. It runs whichever tableau its rk_type argument names, and that argument defaults to res_2m. Its eta (SDE noise) defaults to 0.5, so picking it bare gives you a stochastic res_2m, not a deterministic one.",
+      "good_for": "Nodes that drive the engine themselves and pass their own rk_type (ClownSampler and friends). Picked directly in a plain KSampler it is res_2m at eta 0.5 — choose res_2m_ode instead if you want that tableau deterministic",
+      "pairs_with": ["bong_tangent", "beta57"],
+      "source": { "kind": "pack-provided" },
+      "notes": "RES4LYF beta/__init__.py registers extra_samplers[\"rk_beta\"] = rk_sampler_beta.sample_rk_beta; that function's signature defaults are rk_type=\"res_2m\", eta=0.5, eta_substep=0.5."
+    },
+    "rk": {
+      "year": null,
+      "family": "RES4LYF RK engine (legacy)",
+      "order": "variable",
+      "type": "generic dispatcher (deterministic by default)",
+      "summary": "The legacy sibling of rk_beta — RES4LYF's older Runge-Kutta engine as a plain sampler entry. Same idea: it runs the tableau named by rk_type, defaulting to res_2m. Unlike rk_beta its eta defaults to 0.0, so a bare pick is deterministic.",
+      "good_for": "Legacy RES4LYF graphs that pass their own rk_type. New work should prefer the beta engine (rk_beta, or the named res_/deis_ entries)",
+      "pairs_with": ["bong_tangent", "beta57"],
+      "source": { "kind": "pack-provided" },
+      "notes": "RES4LYF legacy/__init__.py registers extra_samplers[\"rk\"] = rk_sampler.sample_rk, whose defaults are rk_type=\"res_2m\", eta=0.0, implicit_sampler_name=\"explicit_full\", noise_sampler_type=\"gaussian\"."
+    },
+    "legacy_rk": {
+      "year": null,
+      "family": "RES4LYF RK engine (legacy)",
+      "order": "variable",
+      "type": "generic dispatcher (deterministic by default)",
+      "summary": "The oldest of RES4LYF's three RK entry points, kept for graphs built against it. Dispatches on rk_type (default res_2m) like rk and rk_beta; its own defaults differ in the noise sampler (brownian rather than gaussian) and the implicit corrector.",
+      "good_for": "Reproducing older RES4LYF graphs. Not a starting point for new work — rk_beta is the maintained engine",
+      "pairs_with": ["bong_tangent", "beta57"],
+      "source": { "kind": "pack-provided" },
+      "notes": "RES4LYF legacy/__init__.py registers extra_samplers[\"legacy_rk\"] = legacy_sampler_rk.legacy_sample_rk, whose defaults are rk_type=\"res_2m\", eta=0.0, noise_sampler_type=\"brownian\", implicit_sampler_name=\"default\", MULTISTEP=False."
+    },
+    "buehler": {
+      "year": null,
+      "family": "RES4LYF RK (single stage)",
+      "order": 1,
+      "type": "deterministic single-stage",
+      "summary": "The plainest tableau in RES4LYF's legacy RK table: one stage, evaluated at c=0, carrying the whole weight (a = [[]], b = [[1]], c = [0]). One model evaluation per step. The engine also reaches for it internally — as the final-step method when rk_type is ddim, and as the base update for the explicit_full implicit corrector.",
+      "good_for": "A baseline inside the RK framework, and the reason it exists: dedicated diffusion solvers beat a bare one-stage step on quality per evaluation",
+      "pairs_with": ["normal", "simple"],
+      "source": { "kind": "pack-provided" },
+      "notes": "Tableau at RES4LYF legacy/rk_coefficients.py (\"buehler\" entry) and legacy/legacy_sampler_rk.py; the internal uses are legacy/rk_sampler.py, which sets rk_type_final_step = \"buehler\" when rk_type is ddim and rk_type = \"buehler\" when implicit_sampler_name is explicit_full."
+    },
+    "rk_exp_5s": {
+      "year": null,
+      "family": "Exponential RK (RES4LYF legacy)",
+      "order": "variable",
+      "type": "deterministic exponential integrator",
+      "summary": "Five-stage exponential Runge-Kutta built from the phi-functions (phi1, phi2, phi3) at stage nodes c = 0, 1/2, 1/2, 1, 1/2. Five model evaluations per step, so accuracy per step is high and cost per step is too.",
+      "good_for": "High accuracy per step at low step counts inside RES4LYF's legacy sampler; expensive per step, like the other high-stage exponential entries",
+      "pairs_with": ["bong_tangent", "beta57", "exponential"],
+      "source": { "kind": "pack-provided" },
+      "notes": "Coefficients at RES4LYF legacy/legacy_sampler_rk.py, case \"rk_exp_5s\"; offered by the legacy RK_SAMPLER_NAMES list in legacy/legacy_samplers.py."
+    },
+    "genlawson41_4s": {
+      "year": null,
+      "family": "Lawson (generalized exponential RK)",
+      "order": "variable",
+      "type": "deterministic exponential integrator",
+      "summary": "GenLawson4 — a four-stage generalized Lawson exponential Runge-Kutta, phi-function coefficients at stage nodes c = 0, 1/2, 1/2, 1. The unmodified member of the pair; modgenlawson41_4s is the modified one.",
+      "good_for": "The Lawson branch of RES4LYF's exponential integrators; four model evaluations per step",
+      "pairs_with": ["bong_tangent", "beta57", "exponential"],
+      "source": { "kind": "pack-provided" },
+      "notes": "RES4LYF legacy/rk_coefficients.py, case \"genlawson41_4s\", which cites the GenLawson4 scheme at https://ora.ox.ac.uk/objects/uuid:cc001282-4285-4ca2-ad06-31787b540c61 . Sibling of the beta engine's lawson41-gen_4s."
+    },
+    "modgenlawson41_4s": {
+      "year": null,
+      "family": "Lawson (generalized exponential RK)",
+      "order": "variable",
+      "type": "deterministic exponential integrator",
+      "summary": "The modified GenLawson4. Identical to genlawson41_4s except in the final weight: b4 becomes phi2 - (1/3)*phi(0,2) instead of the plain 1/6, which is the whole difference between the two.",
+      "good_for": "Same niche as genlawson41_4s — try one against the other rather than reasoning about which should win",
+      "pairs_with": ["bong_tangent", "beta57", "exponential"],
+      "source": { "kind": "pack-provided" },
+      "notes": "RES4LYF legacy/rk_coefficients.py, case \"modgenlawson41_4s\", same GenLawson4 citation as its unmodified sibling. Sibling of the beta engine's lawson41-gen-mod_4s."
+    },
+    "inversed_euler": {
+      "year": null,
+      "family": "Euler (inversion)",
+      "order": 1,
+      "type": "deterministic inversion",
+      "summary": "Not a denoiser. comfyui-easy-use adds this to run Euler in the inversion direction and divide the result by the last sigma, so the output is a noise latent rather than an image. The first step is special-cased (it evaluates the model at sigmas[1] and halves the derivative denominator).",
+      "good_for": "Unsampling in comfyui-easy-use's custom-sampling nodes — recovering a noise latent you can re-sample. Choosing it where you meant to generate an image gives you the wrong kind of output, not a worse one",
+      "pairs_with": ["normal", "karras"],
+      "source": { "kind": "pack-provided" },
+      "notes": "comfyui-easy-use py/nodes/samplers.py, get_inversed_euler_sampler -> sample_inversed_euler, wrapped in comfy.samplers.KSAMPLER. Offered on the easy preSampling* nodes as comfy.samplers.KSampler.SAMPLERS + ['inversed_euler']. The `return x / sigmas[-1]` on the last line is the tell that the result is not an image latent."
     }
   },
 
   "alias": {
     "res_2m": "res_multistep",
-    "heun_2s": "heun"
+    "heun_2s": "heun",
+    "linear/euler": "euler",
+    "exponential/ddim": "ddim"
   },
 
   "prefix": [
+    {
+      "match": "^(?:[a-z_]+/)?(?:res|deis)_\\d+[ms]_ode$",
+      "family": "RES / DEIS (RES4LYF, forced-ODE variant)",
+      "summary": "The same tableau as the token without the suffix, with the SDE noise level pinned to zero. RES4LYF's plain res_/deis_ sampler entries run through an engine whose eta defaults to 0.5; the _ode entries are one-line wrappers that pass eta=0.0 and eta_substep=0.0 instead, so the step is a pure deterministic ODE solve.",
+      "good_for": "Reproducibility and A/B work — the deterministic arm of whichever RES or DEIS tableau you are comparing. Drop the suffix to get the stochastic version of the same method",
+      "pairs_with": ["bong_tangent", "beta57", "karras", "exponential"]
+    },
+    {
+      "match": "^(?:[a-z_]+/)?(?:res|deis)_\\d+[ms]_sde$",
+      "family": "RES / DEIS (RES4LYF, forced-SDE variant)",
+      "summary": "The same tableau as the token without the suffix, with SDE noise switched on. In RES4LYF's BongSampler the suffix is stripped and eta is set to 0.5, against 0.0 for the bare name — so within that node the _sde/no-suffix pair is the exact mirror of the _ode/no-suffix pair on the plain sampler list.",
+      "good_for": "The stochastic arm of a RES or DEIS comparison; noise injection each step buys variety at the cost of never fully converging",
+      "pairs_with": ["bong_tangent", "beta57", "karras", "exponential"]
+    },
     {
       "match": "^(?:[a-z_]+/)?res_\\d+m$",
       "family": "RES (RES4LYF, multistep)",

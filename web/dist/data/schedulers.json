@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": 1,
-    "schema": "exact: token -> {year, summary, good_for, notes, source}. Year is approximate (paper / ComfyUI integration).",
+    "schema": "exact: token -> {year, summary, good_for, notes, source}; alias: token -> canonical exact token it reuses (same schedule, different spelling). Lookup order: exact, then alias, then prefix. Year is approximate (paper / ComfyUI integration) and null when it could not be established from the registering pack's source.",
     "source_field": "Optional `source` records HOW the fact is known: kind ∈ vendor-default | vendor-doc | pack-provided | community | empirical | paper. Model recipes live in models.json, cited to the shipped template they came from. See .claude/rules/corpus-ground-truth.md.",
     "behavioural_claims": "Any statement about WHERE a schedule spends its steps is measured, never remembered — `just corpus-check` computes the real sigma curve and prints the step allocation across noise bands beside every entry that makes such a claim. Two entries here (beta57, linear_quadratic) previously described the opposite of what they do.",
     "coverage_ignore": ["^ALL SCHEDULERS$"]
@@ -240,7 +240,125 @@
       "year": 2022,
       "summary": "HiDream-Sampler's Karras exponential schedule. Smoother sigma transitions than Karras Euler's underlying schedule.",
       "good_for": "HiDream when Karras Euler looks harsh; exponential pacing tends to be gentler"
+    },
+
+    "AYS SD1": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's AlignYourStepsScheduler with model_type SD1. Not a schedule of the pack's own — the label is parsed and the core node does the work.",
+      "good_for": "SD 1.5 checkpoints inside the detailer/iterative nodes, which cannot reach the core AlignYourStepsScheduler node directly",
+      "notes": "comfyui-impact-pack modules/impact/impact_sampling.py, calculate_sigmas(): a scheduler starting with 'AYS' calls AlignYourStepsScheduler().get_sigmas(scheduler[4:], steps, denoise=1.0), so the text after 'AYS ' is passed straight through as model_type. Core offers exactly SD1, SDXL and SVD.",
+      "source": { "kind": "pack-provided" }
+    },
+    "AYS SDXL": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's AlignYourStepsScheduler with model_type SDXL. Same dispatch as AYS SD1, different model_type.",
+      "good_for": "SDXL checkpoints inside the detailer/iterative nodes",
+      "notes": "Same call site as AYS SD1 — comfyui-impact-pack modules/impact/impact_sampling.py, calculate_sigmas().",
+      "source": { "kind": "pack-provided" }
+    },
+    "AYS SVD": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's AlignYourStepsScheduler with model_type SVD. Same dispatch as AYS SD1, different model_type.",
+      "good_for": "Stable Video Diffusion checkpoints inside the detailer/iterative nodes",
+      "notes": "Same call site as AYS SD1 — comfyui-impact-pack modules/impact/impact_sampling.py, calculate_sigmas().",
+      "source": { "kind": "pack-provided" }
+    },
+    "GITS[coeff=1.2]": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's GITSScheduler. The number inside the brackets is not decoration — it is parsed out of the label and passed as the coeff argument, and 1.2 is the core node's own default.",
+      "good_for": "Reaching GITS from the detailer/iterative nodes, which take a scheduler name rather than a SIGMAS input",
+      "notes": "comfyui-impact-pack modules/impact/impact_sampling.py: a scheduler starting with 'GITS[coeff=' calls GITSScheduler().execute(float(scheduler[11:-1]), steps, denoise=1.0). Only the coeff=1.2 label is offered (modules/impact/core.py, ADDITIONAL_SCHEDULERS), so this is the one point on a knob core exposes over 0.80-1.50.",
+      "source": { "kind": "pack-provided" }
+    },
+    "LTXV[default]": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's LTXVScheduler, called with every argument hard-coded. Worth knowing before you pick it: the step count is fixed at 20 in the call, so the node's own steps widget does not reach this schedule.",
+      "good_for": "LTX-Video work inside the detailer/iterative nodes, at the vendor's default shift settings and nowhere else — anything else needs the core LTXVScheduler node",
+      "notes": "comfyui-impact-pack modules/impact/impact_sampling.py calls LTXVScheduler().execute(20, 2.05, 0.95, True, 0.1) — steps=20, max_shift=2.05, base_shift=0.95, stretch=True, terminal=0.1. The last four are the core node's declared defaults (comfy_extras/nodes_lt.py); steps=20 is also its default, but here it is a constant rather than a passthrough.",
+      "source": { "kind": "pack-provided" }
+    },
+    "OSS FLUX": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's OptimalStepsScheduler with model_type FLUX. Same label-parsing trick as the AYS entries.",
+      "good_for": "FLUX checkpoints inside the detailer/iterative nodes",
+      "notes": "comfyui-impact-pack modules/impact/impact_sampling.py: a scheduler starting with 'OSS' calls OptimalStepsScheduler().execute(scheduler[4:], steps, denoise=1.0). Core offers exactly FLUX, Wan and Chroma (comfy_extras/nodes_optimalsteps.py).",
+      "source": { "kind": "pack-provided" }
+    },
+    "OSS Wan": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's OptimalStepsScheduler with model_type Wan.",
+      "good_for": "Wan checkpoints inside the detailer/iterative nodes",
+      "notes": "Same call site as OSS FLUX — comfyui-impact-pack modules/impact/impact_sampling.py.",
+      "source": { "kind": "pack-provided" }
+    },
+    "OSS Chroma": {
+      "year": null,
+      "summary": "Impact/Inspire label for core ComfyUI's OptimalStepsScheduler with model_type Chroma.",
+      "good_for": "Chroma checkpoints inside the detailer/iterative nodes",
+      "notes": "Same call site as OSS FLUX — comfyui-impact-pack modules/impact/impact_sampling.py.",
+      "source": { "kind": "pack-provided" }
+    },
+
+    "align_your_steps": {
+      "year": null,
+      "summary": "comfyui-easy-use's AlignYourSteps entry. Unlike the Impact labels it picks the model type for you: it reads the loaded checkpoint's version and passes SD1 / SDXL / SVD accordingly, falling back to SDXL when the version cannot be determined.",
+      "good_for": "AYS on the easy preSampling* nodes without having to name the architecture yourself; the auto-detection is the reason to prefer it over a fixed AYS label",
+      "notes": "comfyui-easy-use py/nodes/samplers.py: get_sd_version(model), then alignYourStepsScheduler().get_sigmas(model_type.upper(), steps, denoise), with model_type defaulted to 'sdxl' when it comes back 'unknown'. py/nodes/fix.py maps the same token onto the Impact-style 'AYS SDXL' / 'AYS SVD' / 'AYS SD1' labels for the detailer path.",
+      "source": { "kind": "pack-provided" }
+    },
+    "gits": {
+      "year": null,
+      "summary": "comfyui-easy-use's GITS entry. Routes to the same GITS sigma table core ships, at coeff 1.2 — the coeff comes from the node's custom settings and defaults to 1.2.",
+      "good_for": "GITS on the easy preSampling* nodes without wiring a SIGMAS input",
+      "notes": "comfyui-easy-use py/nodes/samplers.py: gitsScheduler().get_sigmas(coeff, steps, denoise) with coeff read from loader_settings['custom'] and defaulted to 1.2; the plain (non-custom) path calls it with coeff=1.2 literally.",
+      "source": { "kind": "pack-provided" }
+    },
+    "karrasADV": {
+      "year": null,
+      "summary": "comfyui-easy-use's karras entry with the knobs exposed. It calls core's KarrasScheduler node rather than the plain karras handler, so sigma_max, sigma_min and rho are yours to set — defaults 14.61, 0.03 and 7.0. Same schedule as karras when you leave them alone.",
+      "good_for": "When plain karras is right but its endpoints are not — clipping sigma_max or moving rho is the whole point of the ADV form",
+      "notes": "comfyui-easy-use py/nodes/samplers.py, get_sampler_custom(): KarrasScheduler.execute(steps, sigma_max, sigma_min, rho) with those three read from loader_settings['custom']. Only the easy preSamplingCustom node offers it.",
+      "source": { "kind": "pack-provided" }
+    },
+    "exponentialADV": {
+      "year": null,
+      "summary": "comfyui-easy-use's exponential entry with the endpoints exposed. Calls core's ExponentialScheduler node, so sigma_max and sigma_min are yours to set (defaults 14.61 and 0.03). Same schedule as exponential otherwise.",
+      "good_for": "Exponential spacing over a hand-chosen sigma range rather than the model's own",
+      "notes": "comfyui-easy-use py/nodes/samplers.py: ExponentialScheduler.execute(steps, sigma_max, sigma_min). Only the easy preSamplingCustom node offers it.",
+      "source": { "kind": "pack-provided" }
+    },
+    "polyExponential": {
+      "year": null,
+      "summary": "comfyui-easy-use's entry for core's PolyexponentialScheduler — polynomial-in-log-sigma spacing, with sigma_max, sigma_min and rho exposed (defaults 14.61, 0.03, 7.0).",
+      "good_for": "A third spacing curve to try alongside karrasADV and exponentialADV when none of the plain schedules suit",
+      "notes": "comfyui-easy-use py/nodes/samplers.py: PolyexponentialScheduler.execute(steps, sigma_max, sigma_min, rho). Only the easy preSamplingCustom node offers it.",
+      "source": { "kind": "pack-provided" }
+    },
+    "sdturbo": {
+      "year": null,
+      "summary": "comfyui-easy-use's entry for core's SDTurboScheduler — the very short schedule SD-Turbo checkpoints were distilled for. It reads the schedule off the model, so it takes model, steps and denoise rather than sigma endpoints.",
+      "good_for": "SD-Turbo and similarly distilled checkpoints at 1-4 steps; off-target on undistilled weights",
+      "notes": "comfyui-easy-use py/nodes/samplers.py: SDTurboScheduler.execute(model, steps, denoise). Only the easy preSamplingCustom node offers it.",
+      "source": { "kind": "pack-provided" }
+    },
+    "vp": {
+      "year": null,
+      "summary": "comfyui-easy-use's entry for core's VPScheduler — the variance-preserving schedule from the score-SDE formulation. Parameterised by beta_d, beta_min and eps_s (all defaulting to 0.1 here) rather than by sigma endpoints.",
+      "good_for": "Matching a variance-preserving training schedule; the three betas are the knobs, and the defaults are easy-use's own rather than a model's",
+      "notes": "comfyui-easy-use py/nodes/samplers.py: VPScheduler.execute(steps, beta_d, beta_min, eps_s), each read from loader_settings['custom'] and defaulted to 0.1. Only the easy preSamplingCustom node offers it.",
+      "source": { "kind": "pack-provided" }
+    },
+
+    "constant": {
+      "year": null,
+      "summary": "Not a sigma schedule. On RES4LYF's ClownScheduler this widget shapes a weight curve, and 'constant' is the opt-out: hold the value flat instead of ramping it along any curve. It is prepended to the scheduler list, not part of it.",
+      "good_for": "Turning a ClownScheduler ramp off — a flat guide/weight value between its start and end steps. Choosing it expecting a noise schedule will not do what you want",
+      "notes": "RES4LYF sigmas.py, ClownScheduler.INPUT_TYPES: \"scheduler\": ([\"constant\"] + get_res4lyf_scheduler_list(), ...). The guide code branches on it explicitly (beta/rk_guide_func_beta.py is full of `if scheduler_ != \"constant\":`), which is what makes it a sentinel rather than a curve. Also offered by Legacy_ClownsharKSamplerGuides.",
+      "source": { "kind": "pack-provided" }
     }
+  },
+  "alias": {
+    "alignYourSteps": "align_your_steps"
   },
   "prefix": []
 }
