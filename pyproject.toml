@@ -31,6 +31,13 @@ dev = [
     "pytest>=8",
     "pre-commit>=4",
     "pathspec>=1.1.1",
+    # Test-only, and deliberately NOT a runtime dependency (the pack is
+    # frontend-only — see .claude/rules/dependencies.md). It is the shipped
+    # workflow-template set as a plain data wheel (~3 MB, no torch), which lets
+    # CI verify that every template models.json cites still exists upstream.
+    # Without it that half of `just corpus-check` only ever runs on a
+    # maintainer's GPU box. See tests/test_template_provenance.py.
+    "comfyui-workflow-templates-json>=0.1.47",
 ]
 
 [tool.ruff]

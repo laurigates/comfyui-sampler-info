@@ -1,7 +1,7 @@
 {
   "_meta": {
     "version": 1,
-    "schema": "exact: model-key -> {family, arch, summary, recipe, source, notes}. recipe: {sampler, scheduler (token, or null when the template drives sampling with a dedicated scheduler NODE), scheduler_node (that node's type, or null), steps, cfg}. source: {kind, template}.",
+    "schema": "exact: model-key -> {family, arch, summary, recipe, source, notes}. recipe: {sampler, scheduler (token, or null when the template drives sampling with a dedicated scheduler NODE), scheduler_node (that node's type, or null), steps, cfg}. source: {kind, template (only on kind=vendor-default — the template file as ComfyUI ships it), url (for a vendor artifact that is not a shipped template)}.",
     "purpose": "The one home for each model family's default sampling recipe. It used to live duplicated in samplers.json and schedulers.json good_for prose — 'Krea 2 Turbo: euler + simple, 8 steps, CFG 1' was written into BOTH euler.good_for and simple.good_for, two copies with no source of truth. Stored once here, cited to the template it came from, and re-verified against that template by `just corpus-check`: if upstream changes the template, the check fails. See .claude/rules/corpus-ground-truth.md.",
     "not_a_catalogue": "This is authoring and validation infrastructure, not a model index. It carries the handful of families the corpus already makes claims about — enough to keep those claims honest. Nothing in the UI reads it yet."
   },
@@ -150,7 +150,11 @@
         "steps": 20,
         "cfg": 8
       },
-      "source": { "kind": "vendor-default", "template": "default.json" }
+      "source": {
+        "kind": "vendor-doc",
+        "url": "https://github.com/Comfy-Org/workflow_templates/blob/main/archived/default.json"
+      },
+      "notes": "The recipe is unchanged and still correct — what changed is that it can no longer be machine-verified, so the label had to stop claiming otherwise. It was cited as `vendor-default` / `default.json` on 2026-08-04 (#80). Two days later Comfy-Org/workflow_templates#1088 (commit 5097de61, 2026-08-06, \"Archive Getting Started category and Reve templates\") moved `templates/default.json` to `archived/default.json`, so the shipped template set no longer contains it and `just corpus-check` had nothing to check against. The archived file still carries `v1-5-pruned-emaonly-fp16.safetensors` with KSampler widgets [seed, 'randomize', 20, 8, 'euler', 'normal', 1] — exactly these values. `vendor-default` in this corpus means specifically \"a template ComfyUI ships\", which this no longer is; it is still vendor-authored and vendor-published, hence `vendor-doc` rather than `community`, which would misattribute the numbers to third parties who did not produce them. ComfyUI ships no SD1.5 template today, and its built-in default graph is now Z-Image Turbo, so there is nothing to re-derive from."
     }
   }
 }
