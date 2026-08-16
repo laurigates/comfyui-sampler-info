@@ -135,6 +135,96 @@ def test_pairs_with_tokens_exist_in_scheduler_corpus():
     assert not unknown, "pairs_with references unknown scheduler tokens: " + ", ".join(unknown)
 
 
+def resolution(corpus, token):
+    """Return ('exact'|'alias'|'prefix', key) for a token, or None — same order as lookup()."""
+    import re
+
+    if token in corpus.get("exact", {}):
+        return ("exact", token)
+    canonical = corpus.get("alias", {}).get(token)
+    if canonical and canonical in corpus.get("exact", {}):
+        return ("alias", canonical)
+    for entry in corpus.get("prefix", []):
+        if re.search(entry.get("match", ""), token):
+            return ("prefix", entry["match"])
+    return None
+
+
+def test_alias_targets_exist_in_exact():
+    """Every `alias` value must name a real `exact` key.
+
+    An alias whose target is missing does not error — `lookup()` falls straight
+    through to `prefix`, so the token silently gets a family description or
+    none at all. Nothing else in the suite reads the `alias` section, and it is
+    the mechanism the RES4LYF folder-namespaced spellings (`linear/euler`,
+    `exponential/ddim`) and `alignYourSteps` depend on.
+    """
+    broken = []
+    populated = []
+    for name in CORPUS_FILES:
+        with open(CORPUS_DIR / name) as f:
+            corpus = json.load(f)
+        aliases = corpus.get("alias", {})
+        if aliases:
+            populated.append(name)
+        for token, canonical in aliases.items():
+            if canonical not in corpus.get("exact", {}):
+                broken.append(f"{name}: alias[{token!r}] -> {canonical!r} (no such exact entry)")
+
+    # Paired positive: `assert not broken` is vacuously true when every corpus
+    # has an empty `alias` section, which is exactly what a botched edit that
+    # drops the section looks like. Both corpora carry aliases today.
+    assert populated == CORPUS_FILES, (
+        f"expected every corpus to carry an alias section; only {populated} do"
+    )
+    assert not broken, "alias targets missing from exact: " + ", ".join(broken)
+
+
+def test_ode_and_sde_suffixes_beat_the_generic_res_family():
+    """`res_2s_ode` must resolve to the forced-ODE family, not the generic RES one.
+
+    `^(?:[a-z_]+/)?res_\\d+s` is deliberately not end-anchored, so it also
+    matches `res_2s_ode` and `res_2s_sde`. Prefix resolution is first-match-wins,
+    so the suffix families only win because they are listed ahead of it —
+    reorder the list and the suffixed tokens silently regress to a description
+    that says nothing about eta being pinned. Ordering is asserted through
+    resolution rather than list indices so it survives insertions elsewhere.
+    """
+    import re
+
+    with open(CORPUS_DIR / "samplers.json") as f:
+        samplers = json.load(f)
+
+    def family_of(token):
+        """The `family` label of the first prefix entry that matches — first-match-wins.
+
+        Identify the family by its label, not by its regex text: a mutation
+        that widens the pattern also changes the pattern string, so a substring
+        check on the regex stops recognising the very entry it is meant to
+        catch and the assertion passes against the bug.
+        """
+        assert token not in samplers["exact"], f"{token!r} is an exact entry, not a prefix case"
+        assert token not in samplers.get("alias", {}), f"{token!r} is an alias, not a prefix case"
+        for entry in samplers["prefix"]:
+            if re.search(entry["match"], token):
+                return entry["family"]
+        pytest.fail(f"{token!r} matches no prefix family")
+
+    # Both directions on the same stem, in the same test: the bare form still
+    # takes the generic family, and the suffixed forms take the suffix ones.
+    # Asserting only the second would pass against a corpus where the suffix
+    # patterns had grown greedy and swallowed every res_* token.
+    #
+    # The bare case goes FIRST on purpose. Checked last, an over-greedy suffix
+    # pattern trips the suffixed assertions before this one ever runs, so the
+    # arm reads as proven while never having been exercised.
+    generic = family_of("res_2s")
+    assert "forced-" not in generic, f"bare res_2s matched a suffix family ({generic!r})"
+    assert "forced-ODE" in family_of("res_2s_ode")
+    assert "forced-ODE" in family_of("res_2m_ode")
+    assert "forced-SDE" in family_of("res_2s_sde")
+
+
 def test_source_kinds_are_allowed():
     """`source.kind` must be one of the recognized provenance labels.
 
