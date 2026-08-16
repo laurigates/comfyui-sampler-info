@@ -91,6 +91,8 @@ jobs:
           # Personal access token issued at https://registry.comfy.org/
           # Stored as a repo secret named REGISTRY_ACCESS_TOKEN.
           personal_access_token: ${{ secrets.REGISTRY_ACCESS_TOKEN }}
-          # Skip the action's internal checkout, which would wipe the
-          # git-ignored web/dist built above. Requires the pinned main ref.
+          # Skip the action's internal checkout, which would reset web/dist to
+          # the committed tree and discard the build above. Still required even
+          # though web/dist is git-tracked: the build must be the one made from
+          # this commit's src/, not whatever was committed. Needs the pinned main ref.
           skip_checkout: 'true'

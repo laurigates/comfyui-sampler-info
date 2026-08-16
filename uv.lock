@@ -39,6 +39,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "comfyui-workflow-templates-json" },
     { name = "pathspec" },
     { name = "pre-commit" },
     { name = "pytest" },
@@ -50,10 +51,20 @@ requires-dist = [{ name = "comfyui-frontend-package", specifier = ">=1.40.0" }]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "comfyui-workflow-templates-json", specifier = ">=0.1.47" },
     { name = "pathspec", specifier = ">=1.1.1" },
     { name = "pre-commit", specifier = ">=4" },
     { name = "pytest", specifier = ">=8" },
     { name = "ruff", specifier = ">=0.11" },
+]
+
+[[package]]
+name = "comfyui-workflow-templates-json"
+version = "0.1.47"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/64/8e/e4995390eda7df4893a327234e738918b78e7b1e143b9e330849a8235754/comfyui_workflow_templates_json-0.1.47.tar.gz", hash = "sha256:047a98aef35ca6152ca98f4ad3dc60f187afe764d3b7416be505bb2e71732cf9", size = 2480671, upload-time = "2026-08-13T15:23:22.958Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/8f/96/996c53c15cd13d4641e848c0ba6142cf58235cf91e2eb67bee5a4b14bdf1/comfyui_workflow_templates_json-0.1.47-py3-none-any.whl", hash = "sha256:9950266980133ac5f02d9cdea784ec57ca5481c64bd7c17b65a5a8d945f6fded", size = 3061407, upload-time = "2026-08-13T15:23:21.734Z" },
 ]
 
 [[package]]

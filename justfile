@@ -72,8 +72,11 @@ corpus-check host=env("COMFY_SSH_HOST", "popos.intra.lakuz.com") comfy_root=env(
 ##########
 
 # Regenerate docs/picker.png and docs/tooltip.png via the screenshot generator.
-# Builds web/dist/ first — it is the served extension (WEB_DIRECTORY) and is
-# git-ignored, so the Docker COPY needs it present on disk.
+# Builds web/dist/ first so the Docker COPY picks up the current bundle rather
+# than whatever was last committed. web/dist/ is generated but git-TRACKED —
+# ci.yml runs `git diff --exit-code -- web/dist` and fails when it is stale, so
+# it has to be committed alongside any src/ or web/data/ change. This comment
+# used to call it git-ignored, which contradicted CLAUDE.md in the same repo.
 [group: "docs"]
 screenshots: build
     docker build -f screenshots/Dockerfile -t comfyui-sampler-info-screenshots .

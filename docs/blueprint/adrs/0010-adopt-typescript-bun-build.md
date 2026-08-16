@@ -78,7 +78,12 @@ type gate; `bun build` is the emit. The two are decoupled — `tsc` never emits,
   `/extensions/comfyui-sampler-info/data/*.json`. `EXT_NAME` and `DATA_BASE`
   are unchanged — the fetch path still derives from the pack directory name,
   not the JS file location.
-- **Distribution**: `web/dist/` is git-ignored (it is generated). The Comfy
+- **Distribution**: `web/dist/` is git-ignored (it is generated).
+  <!-- Correction 2026-08-16: no longer true. `web/dist/` was later committed
+  and is git-tracked; `ci.yml` fails on `git diff --exit-code -- web/dist`. The
+  original line is kept because this is a record of the decision as taken. See
+  CLAUDE.md § File layout for the current state. -->
+  The Comfy
   Registry tarball includes it via `[tool.comfy] includes = ["web/dist"]`, and
   CI (`publish.yml`) runs `bun run build` before `publish-node-action` so the
   artifact exists at publish time.
