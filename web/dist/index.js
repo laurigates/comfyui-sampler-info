@@ -1028,14 +1028,14 @@ function rankOptions(opts) {
   const ranked = [];
   for (const value of values) {
     const info = lookup(corpus, value);
-    const paired2 = isScheduler ? pairsWith(samplers, sibling, value) : pairsWith(samplers, value, sibling);
+    const paired = isScheduler ? pairsWith(samplers, sibling, value) : pairsWith(samplers, value, sibling);
     if (!hasFilter) {
-      ranked.push({ value, info, score: 0, nameMatches: [], paired: paired2 });
+      ranked.push({ value, info, score: 0, nameMatches: [], paired });
       continue;
     }
     const r = fuzzyRank(query, rankFields(value, info), NAME_WEIGHT);
     if (r)
-      ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches, paired: paired2 });
+      ranked.push({ value, info, score: r.score, nameMatches: r.primaryMatches, paired });
   }
   if (hasFilter) {
     ranked.sort((a, b) => b.score - a.score);
@@ -1479,12 +1479,12 @@ app.registerExtension({
   }
 });
 export {
-  safeRegex,
-  readSiblingValue,
-  rankOptions,
-  pairsWith,
-  openPicker,
-  lookup,
+  CSS2 as CSS,
   compileCorpus,
-  CSS2 as CSS
+  lookup,
+  openPicker,
+  pairsWith,
+  rankOptions,
+  readSiblingValue,
+  safeRegex
 };
