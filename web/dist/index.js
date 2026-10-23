@@ -12,7 +12,11 @@ function getKit() {
       activeModal: null,
       pointerClaim: null,
       modalChrome: [],
-      pointerGuardInstalled: false
+      pointerGuardInstalled: false,
+      hubEntries: [],
+      hubLauncherInstalled: false,
+      hubToggles: [],
+      safeViewListeners: []
     };
     g[KEY] = kit;
   }
@@ -22,6 +26,12 @@ function getKit() {
     kit.modelPickers = [];
   if (!kit.modalChrome)
     kit.modalChrome = [];
+  if (!kit.hubEntries)
+    kit.hubEntries = [];
+  if (!kit.hubToggles)
+    kit.hubToggles = [];
+  if (!kit.safeViewListeners)
+    kit.safeViewListeners = [];
   return kit;
 }
 function registerFieldProvider(provider) {
@@ -46,6 +56,27 @@ var SORT_OPTIONS = [
   { value: "rating:asc", label: "Lowest rating" }
 ];
 var VALID_SORTS = new Set(SORT_OPTIONS.map((o) => o.value));
+var IMG_EXTS = new Set([
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
+  ".bmp",
+  ".tiff",
+  ".tif",
+  ".avif"
+]);
+var VIDEO_EXTS = new Set([
+  ".mp4",
+  ".webm",
+  ".mov",
+  ".mkv",
+  ".avi",
+  ".m4v",
+  ".mpg",
+  ".mpeg"
+]);
 var CHROME_ATTR = "data-cmp-chrome";
 function setActiveModal(handle) {
   installPointerGuard();
@@ -471,6 +502,68 @@ function highlightMatches(target, matchIndices) {
   }
   return frag;
 }
+var SAFE_VIEW_DEFAULT_KEYWORDS = "nsfw";
+var SAFE_VIEW_DEFAULTS = Object.freeze({
+  enabled: true,
+  keywords: Object.freeze([SAFE_VIEW_DEFAULT_KEYWORDS]),
+  hide: false,
+  blurNames: true,
+  matchPrompt: false
+});
+var SAFE_VIEW_BLUR_CLASS = "cmk-sv-blur";
+var SAFE_VIEW_SPOILER_CLASS = "cmk-sv-spoiler";
+var SAFE_VIEW_CSS = `
+.${SAFE_VIEW_BLUR_CLASS} {
+    /* Scale past the edges: a blurred element otherwise fades toward its own
+       border and leaks a readable silhouette of the content at the rim. */
+    filter: blur(18px);
+    transform: scale(1.08);
+}
+.${SAFE_VIEW_SPOILER_CLASS} {
+    /* A SOLID BLOCK, never a text blur — blurred text stays readable at small
+       sizes, which is exactly the size a phone grid renders names at. */
+    background: #3a3a44;
+    color: transparent;
+    border-radius: 3px;
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: default;
+}
+.cmk-sv-reveal {
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    z-index: 2;
+    /* >=34px is the family's per-card control floor. */
+    min-width: 34px;
+    min-height: 34px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    line-height: 1;
+    background: rgba(20, 20, 26, 0.82);
+    color: #e8e8ea;
+    border: 1px solid #4a4a58;
+    border-radius: 8px;
+    cursor: pointer;
+    touch-action: manipulation;
+}
+.cmk-sv-reveal:hover {
+    background: rgba(40, 40, 52, 0.92);
+}
+`;
+var NATIVE_SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End"
+]);
 
 // src/index.ts
 import { app } from "/scripts/app.js";
