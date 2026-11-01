@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.22](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.21...comfyui-sampler-info-v0.1.22) (2026-10-23)
+
+
+### Bug Fixes
+
+* **deps:** bump @laurigates/comfy-modal-kit to ^0.14.0 and rebuild web/dist ([#104](https://github.com/laurigates/comfyui-sampler-info/issues/104)) ([d7045d0](https://github.com/laurigates/comfyui-sampler-info/commit/d7045d01cc9b68801b46ecd1d302764d05e88e60)), closes [#101](https://github.com/laurigates/comfyui-sampler-info/issues/101)
+
 ## [0.1.21](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.20...comfyui-sampler-info-v0.1.21) (2026-08-16)
 
 
