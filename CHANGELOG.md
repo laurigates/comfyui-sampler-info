@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.23](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.22...comfyui-sampler-info-v0.1.23) (2026-11-16)
+
+
+### Bug Fixes
+
+* **types:** move @comfyorg/comfyui-frontend-types to ^1.60.0 ([#116](https://github.com/laurigates/comfyui-sampler-info/issues/116)) ([e37000a](https://github.com/laurigates/comfyui-sampler-info/commit/e37000aaa7d126f16ed581b6d98931148344df16))
+
 ## [0.1.22](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.21...comfyui-sampler-info-v0.1.22) (2026-10-23)
 
 
