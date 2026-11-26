@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.24](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.23...comfyui-sampler-info-v0.1.24) (2026-11-26)
+
+
+### Bug Fixes
+
+* **deps:** update dependency playwright to v1.55.1 [security] ([#109](https://github.com/laurigates/comfyui-sampler-info/issues/109)) ([44fe995](https://github.com/laurigates/comfyui-sampler-info/commit/44fe99558597efbd352c393b2f4859a4463da092))
+
+
+### Miscellaneous
+
+* **claude:** reconcile Claude Code config with the repo baseline ([#113](https://github.com/laurigates/comfyui-sampler-info/issues/113)) ([f5a33fa](https://github.com/laurigates/comfyui-sampler-info/commit/f5a33faf0da486b1024b02a0f904fa16edf489c3))
+* **deps:** update dependency virtualenv to v21.14.10 [security] ([#118](https://github.com/laurigates/comfyui-sampler-info/issues/118)) ([de65b7d](https://github.com/laurigates/comfyui-sampler-info/commit/de65b7dd34e4fced70e666aec7ad23f8d7352b69))
+
 ## [0.1.23](https://github.com/laurigates/comfyui-sampler-info/compare/comfyui-sampler-info-v0.1.22...comfyui-sampler-info-v0.1.23) (2026-11-16)
 
 
